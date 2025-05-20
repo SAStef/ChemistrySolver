@@ -21,30 +21,68 @@ def split_ionic_equation(equation):
     raise ValueError("Invalid equation format. Use '->' or '→'.")
 
 def parse_term(term):
-    match = re.match(r'(\d*)\s*(.*)', term)
+    # Fix the issue with handling coefficient and formula
+    term = term.strip()
+    match = re.match(r'^(\d*)\s*(.+)$', term)
+    
+    if not match:
+        raise ValueError(f"Invalid term format: {term}")
+    
     coef = int(match.group(1)) if match.group(1) else 1
     formula = match.group(2).strip()
+    
     if not formula:
-        raise ValueError("Empty formula detected.")
+        raise ValueError(f"Empty formula detected in term: '{term}'")
+        
     return coef, formula
 
 def parse_ionic_equation(equation):
     lhs, rhs = split_ionic_equation(equation)
-    reactants = [parse_term(r) for r in lhs.split('+')]
-    products = [parse_term(p) for p in rhs.split('+')]
+    
+    # Handle case of no spaces around plus sign
+    lhs = re.sub(r'(\S)\+(\S)', r'\1 + \2', lhs)
+    rhs = re.sub(r'(\S)\+(\S)', r'\1 + \2', rhs)
+    
+    reactants = [parse_term(r.strip()) for r in lhs.split('+')]
+    products = [parse_term(p.strip()) for p in rhs.split('+')]
+    
     reactants = [(c, clean_formula(f)) for c, f in reactants]
     products = [(c, clean_formula(f)) for c, f in products]
+    
     return reactants, products
 
 def identify_oxidation_changes(equation):
-    lhs, rhs = split_ionic_equation(equation)
-    reactants = [clean_formula(parse_term(r)[1]) for r in lhs.split('+')]
-    products = [clean_formula(parse_term(p)[1]) for p in rhs.split('+')]
-    elements = set(re.findall(r'[A-Z][a-z]?', ''.join(reactants + products)))
+    reactants, products = parse_ionic_equation(equation)
+    reactant_formulas = [f for _, f in reactants]
+    product_formulas = [f for _, f in products]
+    
+    elements = set()
+    for formula in reactant_formulas + product_formulas:
+        elements.update(re.findall(r'[A-Z][a-z]?', formula))
+    
     changes = []
     for el in elements:
-        r_ox = next((calculate_oxidation_number(f, el)['oxidation_number'] for f in reactants if el in f), None)
-        p_ox = next((calculate_oxidation_number(f, el)['oxidation_number'] for f in products if el in f), None)
+        r_ox = None
+        p_ox = None
+        
+        # Find oxidation state in reactants
+        for formula in reactant_formulas:
+            if re.search(f'[^A-Za-z]{el}|^{el}', formula):
+                try:
+                    r_ox = calculate_oxidation_number(formula, el)['oxidation_number']
+                    break
+                except:
+                    pass
+        
+        # Find oxidation state in products
+        for formula in product_formulas:
+            if re.search(f'[^A-Za-z]{el}|^{el}', formula):
+                try:
+                    p_ox = calculate_oxidation_number(formula, el)['oxidation_number']
+                    break
+                except:
+                    pass
+        
         if r_ox is not None and p_ox is not None and r_ox != p_ox:
             changes.append({
                 "element": el,
@@ -52,6 +90,7 @@ def identify_oxidation_changes(equation):
                 "product_oxidation": p_ox,
                 "change": p_ox - r_ox
             })
+    
     return changes
 
 def balance_redox_reaction(equation, environment="acidic"):
@@ -59,17 +98,20 @@ def balance_redox_reaction(equation, environment="acidic"):
     redox_elements = identify_oxidation_changes(equation)
     oxidizing_agents = []
     reducing_agents = []
+    
     for el in redox_elements:
         for _, f in reactants:
-            if el['element'] in f:
+            if re.search(f'[^A-Za-z]{el["element"]}|^{el["element"]}', f):
                 if el['change'] > 0:
                     reducing_agents.append(f)
                 elif el['change'] < 0:
                     oxidizing_agents.append(f)
+    
     # Simple formatted string for visual output
     balanced_eq = ' + '.join(f"{c if c > 1 else ''}{f}" for c, f in reactants)
     balanced_eq += ' -> '
     balanced_eq += ' + '.join(f"{c if c > 1 else ''}{f}" for c, f in products)
+    
     return {
         "balanced_equation": balanced_eq,
         "environment": environment,
@@ -81,37 +123,59 @@ def balance_redox_reaction(equation, environment="acidic"):
 def determine_reaction_favorability(equation):
     result = balance_redox_reaction(equation)
     redox_elements = result['redox_elements']
+    
     oxidized = next((el for el in redox_elements if el['change'] > 0), None)
     reduced = next((el for el in redox_elements if el['change'] < 0), None)
+    
     oxidation_half, reduction_half = None, None
+    
+    # Find matching half-reactions in our database
     for key in STANDARD_REDUCTION_POTENTIALS:
         sp = key.split('/')
         if oxidized and oxidized['element'] in sp:
             oxidation_half = key
         if reduced and reduced['element'] in sp:
             reduction_half = key
+    
     ox_pot = STANDARD_REDUCTION_POTENTIALS.get(oxidation_half)
     red_pot = STANDARD_REDUCTION_POTENTIALS.get(reduction_half)
+    
     cell_potential = None
     if ox_pot is not None and red_pot is not None:
         cell_potential = red_pot - ox_pot
+    
     favorable = cell_potential is not None and cell_potential > 0
+    
+    explanation = ""
+    if cell_potential is not None:
+        if favorable:
+            explanation = f"The reaction is favorable because the cell potential (E°cell) is positive ({cell_potential:.2f} V). "
+            explanation += f"This indicates that the reaction will proceed spontaneously under standard conditions."
+        else:
+            explanation += f"The reaction is not favorable because the cell potential (E°cell) is negative ({cell_potential:.2f} V). "
+            explanation += f"The reverse reaction would be spontaneous under standard conditions."
+    
     result.update({
         "oxidation_half": oxidation_half,
         "reduction_half": reduction_half,
         "cell_potential": cell_potential,
-        "favorable": favorable
+        "favorable": favorable,
+        "explanation": explanation
     })
+    
     return result
 
 def find_molar_ratio(equation, compound1, compound2):
     try:
         reactants, products = parse_ionic_equation(equation)
         all_compounds = {f: c for c, f in reactants + products}
+        
         c1 = clean_formula(compound1)
         c2 = clean_formula(compound2)
+        
         if c1 in all_compounds and c2 in all_compounds:
             return all_compounds[c1] / all_compounds[c2]
+        
         return None
     except Exception as e:
         print(f"Error in finding molar ratio: {str(e)}")

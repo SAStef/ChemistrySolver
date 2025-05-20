@@ -1,6 +1,7 @@
 from molar_mass import calculate_molar_mass
 from balancer import parse_chemical_equation, balance_equation, format_balanced_equation
-from stoichiometry import solve_stoichiometry_problem, solve_multireactant_problem
+from stoichiometry import (solve_stoichiometry_problem, solve_multireactant_problem, 
+                        solve_gas_stoichiometry_problem)
 from acid_base import identify_acid_base, analyze_compound_list
 from oxidation_state import calculate_oxidation_number, display_oxidation_result
 from redox_reactions import (balance_redox_reaction, identify_oxidation_changes, 
@@ -35,6 +36,21 @@ def handle_stoichiometry():
         result = solve_stoichiometry_problem(eq, given, mass, target)
         print("\n".join(result["steps"]))
         print(f"\nMass of {target}: {result['target_mass']:.4f} g")
+    except Exception as e:
+        print("Error:", str(e))
+
+def handle_gas_stoichiometry():
+    eq = input("Equation: ")
+    given = input("Known compound: ")
+    mass = float(input("Mass in g: "))
+    target = input("Target gas compound: ")
+    temp = float(input("Temperature (°C): "))
+    pressure = float(input("Pressure (atm): "))
+    
+    try:
+        result = solve_gas_stoichiometry_problem(eq, given, mass, target, temp, pressure)
+        print("\n".join(result["steps"]))
+        print(f"\nVolume of {target} gas: {result['gas_volume']:.4f} L")
     except Exception as e:
         print("Error:", str(e))
 
@@ -155,6 +171,7 @@ def main():
         '7': handle_oxidation_number,
         '8': handle_redox_balance,
         '9': handle_molar_ratio,
+        '10': handle_gas_stoichiometry,
         '11': handle_reaction_favorability,
         '0': exit
     }
@@ -169,6 +186,7 @@ def main():
         print("7. Calculate oxidation number")
         print("8. Balance a redox reaction")
         print("9. Find molar ratio between compounds")
+        print("10. Solve gas stoichiometry problem")
         print("11. Determine redox reaction favorability")
         print("0. Exit")
         choice = input("Enter choice: ")

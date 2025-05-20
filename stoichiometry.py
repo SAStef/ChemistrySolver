@@ -44,6 +44,7 @@ def solve_stoichiometry_problem(equation, given_compound, given_mass, target_com
     return {
         "balanced_equation": balanced_equation,
         "target_mass": target_mass,
+        "target_moles": target_moles,
         "steps": steps
     }
 
@@ -106,3 +107,62 @@ def solve_multireactant_problem(equation, reactant_data, target_compound):
         "target_mass": min_mass,
         "steps": steps
     }
+
+def calculate_gas_volume(moles, temperature_c=0, pressure_atm=1.0):
+    """
+    Calculate the volume of gas in liters using the ideal gas law.
+    
+    Args:
+        moles (float): Number of moles of gas
+        temperature_c (float): Temperature in degrees Celsius
+        pressure_atm (float): Pressure in atmospheres
+    
+    Returns:
+        float: Volume in liters
+    """
+    # Gas constant R = 0.08206 L·atm/(mol·K)
+    R = 0.08206
+    
+    # Convert temperature from Celsius to Kelvin
+    temperature_k = temperature_c + 273.15
+    
+    # Calculate volume using PV = nRT
+    volume = (moles * R * temperature_k) / pressure_atm
+    
+    return volume
+
+def solve_gas_stoichiometry_problem(equation, given_compound, given_mass, target_gas, temperature_c=0, pressure_atm=1.0):
+    """
+    Solve a stoichiometry problem involving gas products under specific temperature and pressure.
+    
+    Args:
+        equation (str): Chemical equation
+        given_compound (str): Formula of the given compound
+        given_mass (float): Mass of the given compound in grams
+        target_gas (str): Formula of the target gas compound
+        temperature_c (float): Temperature in degrees Celsius
+        pressure_atm (float): Pressure in atmospheres
+    
+    Returns:
+        dict: Results including steps, gas volume, etc.
+    """
+    # First solve the regular stoichiometry problem to get moles
+    result = solve_stoichiometry_problem(equation, given_compound, given_mass, target_gas)
+    
+    # Calculate gas volume using ideal gas law
+    target_moles = result["target_moles"]
+    gas_volume = calculate_gas_volume(target_moles, temperature_c, pressure_atm)
+    
+    # Add gas volume calculation steps
+    gas_steps = [
+        f"\n8. Calculate volume of {target_gas} gas at {temperature_c}°C and {pressure_atm} atm:",
+        f"   - Using ideal gas law: PV = nRT",
+        f"   - V = (n × R × T) / P",
+        f"   - V = ({target_moles:.6f} mol × 0.08206 L·atm/(mol·K) × {temperature_c + 273.15} K) / {pressure_atm} atm",
+        f"   - V = {gas_volume:.6f} L"
+    ]
+    
+    result["steps"].extend(gas_steps)
+    result["gas_volume"] = gas_volume
+    
+    return result
