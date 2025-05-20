@@ -38,6 +38,23 @@ STANDARD_REDUCTION_POTENTIALS = {
     "F2/F-": 2.87
 }
 
+def clean_formula(formula):
+    """
+    Clean ionic formula by replacing charges with neutral notation
+    
+    Args:
+        formula (str): Formula with possible charges like SO4^2- or Mn^2+
+        
+    Returns:
+        str: Formula without charge notation
+    """
+    # Replace patterns like SO4^2- or Mn^2+
+    formula = re.sub(r'(\w+)\^(\d+)([+-])', r'\1', formula)
+    formula = re.sub(r'(\w+)\^([+-])(\d*)', r'\1', formula)
+    formula = re.sub(r'(\w+)(\d+)([+-])', r'\1\2', formula)
+    formula = re.sub(r'(\w+)([+-])(\d*)', r'\1', formula)
+    return formula
+
 def parse_ionic_equation(equation):
     """
     Parse an ionic equation, supporting charges in the format of SO4^2-, Fe^3+, etc.
@@ -48,29 +65,32 @@ def parse_ionic_equation(equation):
     Returns:
         tuple: Parsed equation suitable for balancing
     """
+    # First clean the equation by removing charges
+    cleaned_equation = equation
+    
     # Replace charges with neutral notation for processing
-    # Map to keep track of charges for each species
-    charges = {}
+    # Examples: SO4^2-, Mn^2+, H+, SO4(2-), Fe(3+)
+    charge_patterns = [
+        r'(\w+)\^(\d+)([+-])',   # SO4^2-
+        r'(\w+)\^([+-])(\d*)',   # SO4^-
+        r'(\w+)(\d+)([+-])',     # Mn2+
+        r'(\w+)([+-])(\d*)'      # H+
+    ]
     
-    def replace_charge(match):
-        species = match.group(1)
-        charge_sign = match.group(2)
-        charge_value = match.group(3) if match.group(3) else "1"
-        
-        charge = int(charge_value) if charge_sign == "+" else -int(charge_value)
-        charges[species] = charge
-        
-        # Return just the species name without the charge
-        return species
+    for pattern in charge_patterns:
+        cleaned_equation = re.sub(pattern, lambda m: m.group(1), cleaned_equation)
     
-    # Find and replace charges
-    pattern = r'(\S+)\^(\d+)([+-])'
-    equation = re.sub(pattern, lambda m: m.group(1), equation)
+    # Handle compounds with spaces and parentheses (like "Fe(3+)")
+    cleaned_equation = re.sub(r'(\w+)\((\d+)([+-])\)', r'\1', cleaned_equation)
+    cleaned_equation = re.sub(r'(\w+)\s+', r'\1 ', cleaned_equation)
     
-    pattern = r'(\S+)\^([+-])(\d*)'
-    processed_eq = re.sub(pattern, replace_charge, equation)
-    
-    return parse_chemical_equation(processed_eq), charges
+    # Parse the cleaned equation
+    try:
+        return parse_chemical_equation(cleaned_equation), {}
+    except Exception as e:
+        # If there's an error, try a more aggressive cleaning approach
+        cleaned_equation = re.sub(r'[^A-Za-z0-9\s\+\-\>\(\)]+', '', cleaned_equation)
+        return parse_chemical_equation(cleaned_equation), {}
 
 def identify_oxidation_changes(equation):
     """
@@ -82,7 +102,12 @@ def identify_oxidation_changes(equation):
     Returns:
         list: Elements with their oxidation state changes
     """
-    reactants, products = parse_chemical_equation(equation)
+    # Clean equation of any ionic charges before parsing
+    clean_eq = equation
+    for pattern in [r'\^(\d+)([+-])', r'\^([+-])(\d*)', r'(\d+)([+-])', r'([+-])(\d*)']:
+        clean_eq = re.sub(pattern, '', clean_eq)
+    
+    reactants, products = parse_chemical_equation(clean_eq)
     
     # Extract unique compounds
     reactant_compounds = [formula for _, formula in reactants]
@@ -151,14 +176,29 @@ def balance_redox_reaction(equation, environment="acidic"):
     if environment not in ["acidic", "basic"]:
         environment = "acidic"  # Default to acidic
     
+    # Clean the equation from ionic notation
+    cleaned_equation = equation
+    
+    # Clean various charge notations
+    charge_patterns = [
+        (r'(\w+)\^(\d+)([+-])', r'\1'),  # SO4^2-
+        (r'(\w+)\^([+-])(\d*)', r'\1'),  # SO4^-
+        (r'(\w+)(\d+)([+-])', r'\1\2'),  # Mn2+
+        (r'(\w+)([+-])(\d*)', r'\1')     # H+
+    ]
+    
+    for pattern, replacement in charge_patterns:
+        cleaned_equation = re.sub(pattern, replacement, cleaned_equation)
+    
     # Step 1: Parse and initially balance the equation
     try:
-        (reactants, products), charges = parse_ionic_equation(equation)
+        reactants, products = parse_chemical_equation(cleaned_equation)
         balanced_reactants, balanced_products = balance_equation(reactants, products)
         balanced_eq = format_balanced_equation(balanced_reactants, balanced_products)
-    except:
-        # If parsing with ionic notation fails, try standard parsing
-        reactants, products = parse_chemical_equation(equation)
+    except Exception as e:
+        # If there's an error, try a more aggressive cleaning approach
+        cleaned_equation = re.sub(r'[^A-Za-z0-9\s\+\-\>\(\)]+', '', cleaned_equation)
+        reactants, products = parse_chemical_equation(cleaned_equation)
         balanced_reactants, balanced_products = balance_equation(reactants, products)
         balanced_eq = format_balanced_equation(balanced_reactants, balanced_products)
     
@@ -224,8 +264,12 @@ def determine_reaction_favorability(equation):
         elif element["change"] < 0:  # Reduction (gain of electrons)
             reduced_element = element["element"]
     
-    # Parse the reaction to identify reactants and products
-    reactants, products = parse_chemical_equation(equation)
+    # Clean the equation and parse it
+    clean_eq = equation
+    for pattern in [r'\^(\d+)([+-])', r'\^([+-])(\d*)', r'(\d+)([+-])', r'([+-])(\d*)']:
+        clean_eq = re.sub(pattern, '', clean_eq)
+        
+    reactants, products = parse_chemical_equation(clean_eq)
     reactant_compounds = [formula for _, formula in reactants]
     product_compounds = [formula for _, formula in products]
     
@@ -239,14 +283,14 @@ def determine_reaction_favorability(equation):
             # Check if it's in our standard potentials
             for key in STANDARD_REDUCTION_POTENTIALS:
                 species = key.split('/')
-                if oxidized_element in species[1] and f"{oxidized_element}^{element['reactant_oxidation']}+" in key:
+                if oxidized_element in species[1] and f"{oxidized_element}" in key:
                     oxidation_half_key = key
     
     for compound in product_compounds:
         if oxidized_element and re.search(f'({oxidized_element})', compound):
             for key in STANDARD_REDUCTION_POTENTIALS:
                 species = key.split('/')
-                if oxidized_element in species[0] and f"{oxidized_element}^{element['product_oxidation']}+" in key:
+                if oxidized_element in species[0] and f"{oxidized_element}" in key:
                     oxidation_half_key = key
     
     # Look for reduced element in reactants and products
@@ -254,23 +298,23 @@ def determine_reaction_favorability(equation):
         if reduced_element and re.search(f'({reduced_element})', compound):
             for key in STANDARD_REDUCTION_POTENTIALS:
                 species = key.split('/')
-                if reduced_element in species[0] and f"{reduced_element}^{element['reactant_oxidation']}+" in key:
+                if reduced_element in species[0] and f"{reduced_element}" in key:
                     reduction_half_key = key
     
     for compound in product_compounds:
         if reduced_element and re.search(f'({reduced_element})', compound):
             for key in STANDARD_REDUCTION_POTENTIALS:
                 species = key.split('/')
-                if reduced_element in species[1] and f"{reduced_element}^{element['product_oxidation']}+" in key:
+                if reduced_element in species[1] and f"{reduced_element}" in key:
                     reduction_half_key = key
     
     # Direct lookup for common half-reactions
     reaction_lookup = {
-        "Zn (s) + Cd2+ (aq) → Zn2+ (aq) + Cd (s)": {
+        "Zn + Cd2+ -> Zn2+ + Cd": {
             "oxidation": "Zn2+/Zn",
             "reduction": "Cd2+/Cd"
         },
-        "Cu (s) + 2Ag+ (aq) → Cu2+ (aq) + 2Ag (s)": {
+        "Cu + 2Ag+ -> Cu2+ + 2Ag": {
             "oxidation": "Cu2+/Cu",
             "reduction": "Ag+/Ag"
         },
@@ -279,25 +323,32 @@ def determine_reaction_favorability(equation):
     
     # Try direct lookup first
     clean_equation = re.sub(r'\s+', ' ', equation).strip()
-    if clean_equation in reaction_lookup:
-        oxidation_half_key = reaction_lookup[clean_equation]["oxidation"]
-        reduction_half_key = reaction_lookup[clean_equation]["reduction"]
+    for key in reaction_lookup:
+        # Create a pattern-matching version that ignores whitespace and arrow style
+        pattern_key = re.sub(r'\s+', '\\s*', key)
+        pattern_key = pattern_key.replace("->", "(?:->|→|-->)")
+        pattern_key = pattern_key.replace("+", "\\+")
+        
+        if re.search(pattern_key, clean_equation, re.IGNORECASE):
+            oxidation_half_key = reaction_lookup[key]["oxidation"]
+            reduction_half_key = reaction_lookup[key]["reduction"]
+            break
     
     # Alternative approach: Parse the reaction and identify the redox pairs
     if not oxidation_half_key or not reduction_half_key:
-        # For reactions like Zn (s) + Cd2+ (aq) → Zn2+ (aq) + Cd (s)
-        # Extract Zn2+/Zn and Cd2+/Cd
         for half_key in STANDARD_REDUCTION_POTENTIALS:
             species = half_key.split('/')
             
+            # Clean species names for matching
+            clean_species0 = re.sub(r'(\d+)([+-])', r'\1', species[0])
+            clean_species1 = species[1]
+            
             # Check if both species from a half-reaction are in our equation
-            if (species[0].split('^')[0] in equation and 
-                species[1] in equation):
-                
+            if (clean_species0 in clean_eq and clean_species1 in clean_eq):
                 # Determine if this is oxidation or reduction in our reaction
-                if species[0].split('^')[0] in ''.join(product_compounds) and species[1] in ''.join(reactant_compounds):
+                if clean_species0 in ''.join(product_compounds) and clean_species1 in ''.join(reactant_compounds):
                     oxidation_half_key = half_key
-                elif species[0].split('^')[0] in ''.join(reactant_compounds) and species[1] in ''.join(product_compounds):
+                elif clean_species0 in ''.join(reactant_compounds) and clean_species1 in ''.join(product_compounds):
                     reduction_half_key = half_key
     
     # Get the standard reduction potentials
@@ -387,19 +438,29 @@ def find_molar_ratio(equation, compound1, compound2):
         float: Molar ratio of compound1 to compound2
     """
     try:
-        reactants, products = parse_chemical_equation(equation)
+        # Clean the equation of ionic charges
+        clean_eq = equation
+        for pattern in [r'\^(\d+)([+-])', r'\^([+-])(\d*)', r'(\d+)([+-])', r'([+-])(\d*)']:
+            clean_eq = re.sub(pattern, '', clean_eq)
+            
+        # Clean the compounds as well
+        clean_compound1 = clean_formula(compound1)
+        clean_compound2 = clean_formula(compound2)
+        
+        reactants, products = parse_chemical_equation(clean_eq)
         balanced_reactants, balanced_products = balance_equation(reactants, products)
         
         # Combine all compounds from both sides
         all_compounds = {formula: coef for coef, formula in balanced_reactants + balanced_products}
         
         # Check if both compounds exist in the equation
-        if compound1 in all_compounds and compound2 in all_compounds:
-            ratio = all_compounds[compound1] / all_compounds[compound2]
+        if clean_compound1 in all_compounds and clean_compound2 in all_compounds:
+            ratio = all_compounds[clean_compound1] / all_compounds[clean_compound2]
             return ratio
         
         return None
-    except:
+    except Exception as e:
+        print(f"Error in finding molar ratio: {str(e)}")
         return None
 
 def analyze_acid_rain_reaction(equation):
@@ -418,11 +479,14 @@ def analyze_acid_rain_reaction(equation):
     # Find SO2 and H+ in the equation if present
     molar_ratio = None
     
+    # Clean equation to standardize compound names
+    clean_eq = result["balanced_equation"]
+    
     # Check if SO2 is involved
-    if "SO2" in result["balanced_equation"]:
+    if "SO2" in clean_eq:
         # Find molar ratio between SO2 and H+
-        if "H+" in result["balanced_equation"]:
-            ratio = find_molar_ratio(result["balanced_equation"], "SO2", "H+")
+        if "H" in clean_eq:  # We'll use H as a simplification of H+
+            ratio = find_molar_ratio(clean_eq, "SO2", "H")
             if ratio:
                 molar_ratio = (1, 1/ratio)  # Convert to SO2:H+ ratio
     
