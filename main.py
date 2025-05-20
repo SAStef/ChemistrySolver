@@ -1,6 +1,6 @@
 from molar_mass import calculate_molar_mass
 from balancer import parse_chemical_equation, balance_equation, format_balanced_equation
-from stoichiometry import solve_stoichiometry_problem
+from stoichiometry import solve_stoichiometry_problem, solve_multireactant_problem
 
 def handle_molar_mass():
     formula = input("Enter chemical formula: ")
@@ -33,11 +33,32 @@ def handle_stoichiometry():
     except Exception as e:
         print("Error:", str(e))
 
+def handle_multireactant():
+    eq = input("Equation: ")
+    reactant_count = int(input("Number of reactants: "))
+    reactant_data = {}
+    
+    for i in range(reactant_count):
+        reactant = input(f"Reactant {i+1} formula: ")
+        mass = float(input(f"Mass of {reactant} in g: "))
+        reactant_data[reactant] = mass
+    
+    target = input("Target compound: ")
+    
+    try:
+        result = solve_multireactant_problem(eq, reactant_data, target)
+        print("\n".join(result["steps"]))
+        print(f"\nLimiting reactant: {result['limiting_reactant']}")
+        print(f"Mass of {target}: {result['target_mass']:.4f} g")
+    except Exception as e:
+        print("Error:", str(e))
+
 def main():
     actions = {
         '1': handle_molar_mass,
         '2': handle_balance,
         '3': handle_stoichiometry,
+        '4': handle_multireactant,
         '0': exit
     }
     while True:
@@ -45,6 +66,7 @@ def main():
         print("1. Calculate molar mass")
         print("2. Balance a chemical equation")
         print("3. Solve stoichiometry problem")
+        print("4. Solve multireactant problem (limiting reactant)")
         print("0. Exit")
         choice = input("Enter choice: ")
         action = actions.get(choice)
