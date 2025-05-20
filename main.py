@@ -7,6 +7,9 @@ from oxidation_state import calculate_oxidation_number, display_oxidation_result
 from redox_reactions import (balance_redox_reaction, identify_oxidation_changes, 
                             find_molar_ratio,
                             determine_reaction_favorability)
+from functional_groups import (identify_functional_groups, check_functional_groups,
+                            find_missing_functional_groups, explain_functional_groups_in_compound,
+                            solve_functional_group_problem)
 
 def handle_molar_mass():
     formula = input("Enter chemical formula: ")
@@ -159,7 +162,69 @@ def handle_molar_ratio():
             print("Could not determine molar ratio. Make sure both compounds are in the equation.")
     except Exception as e:
         print(f"Error: {str(e)}")
-        
+
+# New handlers for functional groups
+def handle_identify_functional_groups():
+    """
+    Handler function for identifying functional groups in a compound.
+    """
+    print("\n=== Identify Functional Groups ===")
+    compound = input("Enter compound name: ")
+    result = explain_functional_groups_in_compound(compound_name=compound)
+    
+    print(f"\nCompound: {result['compound']}")
+    if result['functional_groups']:
+        print("Identified functional groups:")
+        for i, (group, explanation) in enumerate(zip(result['functional_groups'], result['explanations'])):
+            print(f"  {i+1}. {group.capitalize()}: {explanation}")
+    else:
+        print("No functional groups identified.")
+
+def handle_functional_group_problem():
+    """
+    Handler function for solving which functional group is NOT present in a compound.
+    """
+    print("\n=== Functional Group Analysis ===")
+    compound = input("Enter compound name: ")
+    print("Enter functional groups to check (comma-separated):")
+    options_input = input("e.g., methyl, carboxyl, hydroxyl, amine, halogen: ")
+    options = [opt.strip().lower() for opt in options_input.split(",")]
+    
+    result = solve_functional_group_problem(compound, options)
+    
+    print(f"\n=== Functional Group Analysis for {result['compound']} ===")
+    print("Present functional groups:")
+    for group in result['present_groups']:
+        print(f"  - {group}")
+    
+    print("\nMissing functional groups:")
+    for group in result['missing_groups']:
+        print(f"  - {group}")
+    
+    if len(result['missing_groups']) == 1:
+        print(f"\nAnswer: {result['missing_groups'][0]} is NOT present in {result['compound']}.")
+    elif len(result['missing_groups']) > 1:
+        print(f"\nAnswer: Multiple functional groups are not present in {result['compound']}.")
+    else:
+        print(f"\nAnswer: All specified functional groups are present in {result['compound']}.")
+
+def handle_check_specific_functional_groups():
+    """
+    Handler function for checking specific functional groups in a compound.
+    """
+    print("\n=== Check Specific Functional Groups ===")
+    compound = input("Enter compound name: ")
+    print("Enter specific functional groups to check (comma-separated):")
+    groups_input = input("e.g., methyl, carboxyl, hydroxyl, amine, halogen: ")
+    groups_to_check = [group.strip().lower() for group in groups_input.split(",")]
+    
+    result = check_functional_groups(compound_name=compound, groups_to_check=groups_to_check)
+    
+    print(f"\nResults for {compound}:")
+    for group, present in result.items():
+        status = "Present" if present else "Not present"
+        print(f"  {group.capitalize()}: {status}")
+
 def main():
     actions = {
         '1': handle_molar_mass,
@@ -173,6 +238,9 @@ def main():
         '9': handle_molar_ratio,
         '10': handle_gas_stoichiometry,
         '11': handle_reaction_favorability,
+        '12': handle_identify_functional_groups,       # New option
+        '13': handle_check_specific_functional_groups, # New option
+        '14': handle_functional_group_problem,         # New option
         '0': exit
     }
     while True:
@@ -188,6 +256,9 @@ def main():
         print("9. Find molar ratio between compounds")
         print("10. Solve gas stoichiometry problem")
         print("11. Determine redox reaction favorability")
+        print("12. Identify functional groups in a compound")  # New menu item
+        print("13. Check specific functional groups")         # New menu item
+        print("14. Find missing functional groups in a compound") # New menu item
         print("0. Exit")
         choice = input("Enter choice: ")
         action = actions.get(choice)
