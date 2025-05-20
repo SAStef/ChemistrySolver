@@ -4,7 +4,7 @@ from stoichiometry import solve_stoichiometry_problem, solve_multireactant_probl
 from acid_base import identify_acid_base, analyze_compound_list
 from oxidation_state import calculate_oxidation_number, display_oxidation_result
 from redox_reactions import (balance_redox_reaction, identify_oxidation_changes, 
-                            find_molar_ratio, analyze_acid_rain_reaction,
+                            find_molar_ratio,
                             determine_reaction_favorability)
 
 def handle_molar_mass():
@@ -143,27 +143,6 @@ def handle_molar_ratio():
             print("Could not determine molar ratio. Make sure both compounds are in the equation.")
     except Exception as e:
         print(f"Error: {str(e)}")
-
-def handle_acid_rain_analysis():
-    equation = input("Enter the acid rain reaction (e.g., SO2 + MnO4- -> SO4^2- + Mn^2+): ")
-    
-    try:
-        result = analyze_acid_rain_reaction(equation)
-        
-        print("\n=== Acid Rain Reaction Analysis ===")
-        print(f"Balanced equation: {result['balanced_equation']}")
-        
-        if result['molar_ratio']:
-            so2, h = result['molar_ratio']
-            print(f"Molar ratio of SO2 to H+: {so2}:{h}")
-            print(f"For every {so2} moles of SO2, {h} moles of H+ are produced.")
-        else:
-            print("Could not determine SO2:H+ ratio. Make sure both compounds are in the equation.")
-        
-        print("\nOxidizing agents:", ", ".join(result['oxidizing_agents']))
-        print("Reducing agents:", ", ".join(result['reducing_agents']))
-    except Exception as e:
-        print(f"Error: {str(e)}")
         
 def main():
     actions = {
@@ -176,7 +155,6 @@ def main():
         '7': handle_oxidation_number,
         '8': handle_redox_balance,
         '9': handle_molar_ratio,
-        '10': handle_acid_rain_analysis,
         '11': handle_reaction_favorability,
         '0': exit
     }
@@ -191,7 +169,6 @@ def main():
         print("7. Calculate oxidation number")
         print("8. Balance a redox reaction")
         print("9. Find molar ratio between compounds")
-        print("10. Analyze acid rain reaction")
         print("11. Determine redox reaction favorability")
         print("0. Exit")
         choice = input("Enter choice: ")
