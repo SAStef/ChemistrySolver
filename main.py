@@ -3,6 +3,8 @@ from balancer import parse_chemical_equation, balance_equation, format_balanced_
 from stoichiometry import solve_stoichiometry_problem, solve_multireactant_problem
 from acid_base import identify_acid_base, analyze_compound_list
 from oxidation_state import calculate_oxidation_number, display_oxidation_result
+from redox_reactions import (balance_redox_reaction, identify_oxidation_changes, 
+                            find_molar_ratio, analyze_acid_rain_reaction)
 
 def handle_molar_mass():
     formula = input("Enter chemical formula: ")
@@ -76,6 +78,68 @@ def handle_oxidation_number():
     except Exception as e:
         print(f"Error: {str(e)}")
 
+def handle_redox_balance():
+    equation = input("Enter the redox reaction equation: ")
+    environment = input("Environment (acidic/basic): ").lower()
+    
+    if environment not in ["acidic", "basic"]:
+        environment = "acidic"  # default to acidic
+    
+    try:
+        result = balance_redox_reaction(equation, environment)
+        
+        print("\n=== Balanced Redox Reaction ===")
+        print(f"Balanced equation: {result['balanced_equation']}")
+        print(f"Environment: {result['environment']}")
+        
+        print("\nElements undergoing redox:")
+        for element in result['redox_elements']:
+            change = element['change']
+            direction = "oxidized" if change > 0 else "reduced"
+            print(f"  {element['element']}: {element['reactant_oxidation']} → {element['product_oxidation']} ({direction})")
+        
+        print("\nOxidizing agents:", ", ".join(result['oxidizing_agents']))
+        print("Reducing agents:", ", ".join(result['reducing_agents']))
+    except Exception as e:
+        print(f"Error: {str(e)}")
+
+def handle_molar_ratio():
+    equation = input("Enter the balanced equation: ")
+    compound1 = input("First compound: ")
+    compound2 = input("Second compound: ")
+    
+    try:
+        ratio = find_molar_ratio(equation, compound1, compound2)
+        
+        if ratio is not None:
+            print(f"Molar ratio of {compound1} to {compound2}: {ratio:.2f}:{1}")
+            print(f"For every {ratio:.2f} moles of {compound1}, you need 1 mole of {compound2}.")
+        else:
+            print("Could not determine molar ratio. Make sure both compounds are in the equation.")
+    except Exception as e:
+        print(f"Error: {str(e)}")
+
+def handle_acid_rain_analysis():
+    equation = input("Enter the acid rain reaction (e.g., SO2 + MnO4- -> SO4^2- + Mn^2+): ")
+    
+    try:
+        result = analyze_acid_rain_reaction(equation)
+        
+        print("\n=== Acid Rain Reaction Analysis ===")
+        print(f"Balanced equation: {result['balanced_equation']}")
+        
+        if result['molar_ratio']:
+            so2, h = result['molar_ratio']
+            print(f"Molar ratio of SO2 to H+: {so2}:{h}")
+            print(f"For every {so2} moles of SO2, {h} moles of H+ are produced.")
+        else:
+            print("Could not determine SO2:H+ ratio. Make sure both compounds are in the equation.")
+        
+        print("\nOxidizing agents:", ", ".join(result['oxidizing_agents']))
+        print("Reducing agents:", ", ".join(result['reducing_agents']))
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        
 def main():
     actions = {
         '1': handle_molar_mass,
@@ -85,6 +149,9 @@ def main():
         '5': handle_acid_base_single,
         '6': handle_acid_base_list,
         '7': handle_oxidation_number,
+        '8': handle_redox_balance,
+        '9': handle_molar_ratio,
+        '10': handle_acid_rain_analysis,
         '0': exit
     }
     while True:
@@ -96,6 +163,9 @@ def main():
         print("5. Identify acid/base compound")
         print("6. Analyze list of compounds")
         print("7. Calculate oxidation number")
+        print("8. Balance a redox reaction")
+        print("9. Find molar ratio between compounds")
+        print("10. Analyze acid rain reaction")
         print("0. Exit")
         choice = input("Enter choice: ")
         action = actions.get(choice)
