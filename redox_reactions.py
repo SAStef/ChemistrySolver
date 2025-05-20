@@ -1,302 +1,432 @@
-import re
-from oxidation_state import calculate_oxidation_number, parse_formula
 from balancer import parse_chemical_equation, balance_equation, format_balanced_equation
+from oxidation_state import calculate_oxidation_number
+import re
+
+# Standard reduction potentials (E°) in volts vs. SHE
+STANDARD_REDUCTION_POTENTIALS = {
+    "Li+/Li": -3.04,
+    "K+/K": -2.93,
+    "Ca2+/Ca": -2.87,
+    "Na+/Na": -2.71,
+    "Mg2+/Mg": -2.37,
+    "Al3+/Al": -1.66,
+    "Zn2+/Zn": -0.76,
+    "Cr3+/Cr": -0.74,
+    "Fe2+/Fe": -0.44,
+    "Cd2+/Cd": -0.40,
+    "Co2+/Co": -0.28,
+    "Ni2+/Ni": -0.25,
+    "Sn2+/Sn": -0.14,
+    "Pb2+/Pb": -0.13,
+    "Fe3+/Fe2+": 0.77,
+    "H+/H2": 0.00,
+    "Sn4+/Sn2+": 0.15,
+    "Cu2+/Cu": 0.34,
+    "Cu+/Cu": 0.52,
+    "I2/I-": 0.54,
+    "MnO4-/Mn2+": 1.51,
+    "Cl2/Cl-": 1.36,
+    "Cr2O7^2-/Cr3+": 1.33,
+    "O2/H2O": 1.23,
+    "Br2/Br-": 1.08,
+    "NO3-/NO": 0.96,
+    "Ag+/Ag": 0.80,
+    "Hg2+/Hg": 0.85,
+    "NO3-/NO2-": 0.80,
+    "Au3+/Au": 1.50,
+    "Co3+/Co2+": 1.82,
+    "F2/F-": 2.87
+}
+
+def parse_ionic_equation(equation):
+    """
+    Parse an ionic equation, supporting charges in the format of SO4^2-, Fe^3+, etc.
+    
+    Args:
+        equation (str): Chemical equation with ionic species
+        
+    Returns:
+        tuple: Parsed equation suitable for balancing
+    """
+    # Replace charges with neutral notation for processing
+    # Map to keep track of charges for each species
+    charges = {}
+    
+    def replace_charge(match):
+        species = match.group(1)
+        charge_sign = match.group(2)
+        charge_value = match.group(3) if match.group(3) else "1"
+        
+        charge = int(charge_value) if charge_sign == "+" else -int(charge_value)
+        charges[species] = charge
+        
+        # Return just the species name without the charge
+        return species
+    
+    # Find and replace charges
+    pattern = r'(\S+)\^(\d+)([+-])'
+    equation = re.sub(pattern, lambda m: m.group(1), equation)
+    
+    pattern = r'(\S+)\^([+-])(\d*)'
+    processed_eq = re.sub(pattern, replace_charge, equation)
+    
+    return parse_chemical_equation(processed_eq), charges
 
 def identify_oxidation_changes(equation):
     """
-    Identifies oxidation number changes in a chemical equation.
+    Identify elements that change oxidation states in a redox reaction.
     
     Args:
-        equation (str): The chemical equation
+        equation (str): Balanced chemical equation
         
     Returns:
-        dict: Information about redox processes
+        list: Elements with their oxidation state changes
     """
-    # Parse and balance the equation
     reactants, products = parse_chemical_equation(equation)
-    balanced_reactants, balanced_products = balance_equation(reactants, products)
     
-    oxidation_changes = {}
-    elements_tracked = set()
+    # Extract unique compounds
+    reactant_compounds = [formula for _, formula in reactants]
+    product_compounds = [formula for _, formula in products]
     
-    # Create a mapping of all compounds in the equation
-    all_compounds = []
-    for coef, formula in balanced_reactants:
-        all_compounds.append(("reactant", formula, coef))
-    for coef, formula in balanced_products:
-        all_compounds.append(("product", formula, coef))
+    # Find all unique elements across all compounds
+    all_elements = set()
+    for compound in reactant_compounds + product_compounds:
+        # Extract elements using regex (simplified)
+        elements = re.findall(r'([A-Z][a-z]*)', compound)
+        all_elements.update(elements)
     
-    # Track all elements across compounds
-    for _, formula, _ in all_compounds:
-        elements = parse_formula(formula)
-        for element in elements:
-            if element not in ['O', 'H']:  # Typically skip oxygen and hydrogen
-                elements_tracked.add(element)
+    # Calculate oxidation states for each element in each compound
+    changes = []
     
-    # Calculate oxidation numbers for each tracked element in each compound
-    oxidation_data = {}
-    
-    for element in elements_tracked:
-        oxidation_data[element] = {"reactants": [], "products": []}
+    for element in all_elements:
+        reactant_states = []
+        product_states = []
         
-        for side, formula, coef in all_compounds:
-            try:
-                # Check if the element is in this compound
-                if element in parse_formula(formula):
-                    result = calculate_oxidation_number(formula, element)
-                    group = "reactants" if side == "reactant" else "products"
-                    oxidation_data[element][group].append({
-                        "formula": formula,
-                        "oxidation": result["oxidation_number"],
-                        "coefficient": coef
-                    })
-            except ValueError:
-                # Element not in this compound, skip
-                continue
-    
-    # Analyze oxidation changes
-    redox_elements = []
-    oxidizing_agents = []
-    reducing_agents = []
-    
-    for element, data in oxidation_data.items():
-        if data["reactants"] and data["products"]:
-            # Calculate weighted average oxidation states if element appears in multiple compounds
-            r_oxid = sum(item["oxidation"] * item["coefficient"] for item in data["reactants"])
-            r_count = sum(item["coefficient"] for item in data["reactants"])
+        # Check element in reactants
+        for compound in reactant_compounds:
+            if re.search(f'({element})', compound):
+                try:
+                    result = calculate_oxidation_number(compound, element)
+                    reactant_states.append(result["oxidation_number"])
+                except:
+                    # Element might be present in compound name but not actually there
+                    continue
+        
+        # Check element in products
+        for compound in product_compounds:
+            if re.search(f'({element})', compound):
+                try:
+                    result = calculate_oxidation_number(compound, element)
+                    product_states.append(result["oxidation_number"])
+                except:
+                    continue
+        
+        # If the element has oxidation states on both sides
+        if reactant_states and product_states:
+            # For simplicity, we'll take the first occurrence if multiple
+            change = product_states[0] - reactant_states[0]
             
-            p_oxid = sum(item["oxidation"] * item["coefficient"] for item in data["products"])
-            p_count = sum(item["coefficient"] for item in data["products"])
-            
-            r_avg = r_oxid / r_count if r_count > 0 else 0
-            p_avg = p_oxid / p_count if p_count > 0 else 0
-            
-            change = p_avg - r_avg
-            
-            if abs(change) > 0.01:  # Small threshold to handle floating point errors
-                redox_elements.append({
+            # Only include elements that actually change oxidation state
+            if change != 0:
+                changes.append({
                     "element": element,
-                    "reactant_oxidation": r_avg,
-                    "product_oxidation": p_avg,
+                    "reactant_oxidation": reactant_states[0],
+                    "product_oxidation": product_states[0],
                     "change": change
                 })
-                
-                # Identify oxidizing and reducing agents
-                if change > 0:  # Oxidation occurred (loss of electrons)
-                    for item in data["reactants"]:
-                        reducing_agents.append(item["formula"])
-                else:  # Reduction occurred (gain of electrons)
-                    for item in data["reactants"]:
-                        oxidizing_agents.append(item["formula"])
     
-    return {
-        "balanced_equation": format_balanced_equation(balanced_reactants, balanced_products),
-        "redox_elements": redox_elements,
-        "oxidizing_agents": list(set(oxidizing_agents)),
-        "reducing_agents": list(set(reducing_agents)),
-        "oxidation_data": oxidation_data
-    }
+    return changes
 
 def balance_redox_reaction(equation, environment="acidic"):
     """
     Balance a redox reaction using the half-reaction method.
     
     Args:
-        equation (str): Chemical equation to balance
+        equation (str): Unbalanced redox reaction
         environment (str): "acidic" or "basic"
         
     Returns:
-        dict: Information about the balanced equation and half-reactions
+        dict: Balanced equation and analysis
     """
-    # Parse the equation
-    reactants, products = parse_chemical_equation(equation)
+    if environment not in ["acidic", "basic"]:
+        environment = "acidic"  # Default to acidic
     
-    # First, try regular balancing (might work for simple redox reactions)
+    # Step 1: Parse and initially balance the equation
     try:
+        (reactants, products), charges = parse_ionic_equation(equation)
         balanced_reactants, balanced_products = balance_equation(reactants, products)
-        balanced_equation = format_balanced_equation(balanced_reactants, balanced_products)
-    except ValueError:
-        # If regular balancing fails, we need to use the half-reaction method
-        balanced_equation = balance_by_half_reaction(equation, environment)
+        balanced_eq = format_balanced_equation(balanced_reactants, balanced_products)
+    except:
+        # If parsing with ionic notation fails, try standard parsing
+        reactants, products = parse_chemical_equation(equation)
+        balanced_reactants, balanced_products = balance_equation(reactants, products)
+        balanced_eq = format_balanced_equation(balanced_reactants, balanced_products)
     
-    # After balancing, identify redox processes
-    redox_info = identify_oxidation_changes(balanced_equation)
+    # Step 2: Identify elements undergoing oxidation/reduction
+    redox_elements = identify_oxidation_changes(balanced_eq)
     
-    # Calculate molar ratios
-    molar_ratios = calculate_molar_ratios(balanced_equation)
+    # Step 3: Identify oxidizing and reducing agents
+    oxidizing_agents = []
+    reducing_agents = []
+    
+    for element in redox_elements:
+        # Element being oxidized (losing electrons)
+        if element["change"] > 0:
+            # Find compounds containing this element in reactants
+            for _, formula in reactants:
+                if re.search(f'({element["element"]})', formula):
+                    reducing_agents.append(formula)
+        
+        # Element being reduced (gaining electrons)
+        if element["change"] < 0:
+            # Find compounds containing this element in reactants
+            for _, formula in reactants:
+                if re.search(f'({element["element"]})', formula):
+                    oxidizing_agents.append(formula)
+    
+    # Remove duplicates
+    oxidizing_agents = list(set(oxidizing_agents))
+    reducing_agents = list(set(reducing_agents))
     
     return {
-        "balanced_equation": balanced_equation,
+        "balanced_equation": balanced_eq,
         "environment": environment,
-        "redox_elements": redox_info["redox_elements"],
-        "oxidizing_agents": redox_info["oxidizing_agents"],
-        "reducing_agents": redox_info["reducing_agents"],
-        "molar_ratios": molar_ratios
+        "redox_elements": redox_elements,
+        "oxidizing_agents": oxidizing_agents,
+        "reducing_agents": reducing_agents
     }
 
-def balance_by_half_reaction(equation, environment="acidic"):
+def determine_reaction_favorability(equation):
     """
-    Balance a redox reaction using the half-reaction method.
+    Determine if a redox reaction is favorable at standard conditions.
     
     Args:
-        equation (str): Chemical equation to balance
-        environment (str): "acidic" or "basic"
+        equation (str): Chemical equation for the redox reaction
         
     Returns:
-        str: Balanced equation
+        dict: Analysis results including favorability
     """
-    # This is a simplified implementation focused on the given problem
-    # In a complete implementation, we would:
-    # 1. Split the reaction into half-reactions
-    # 2. Balance elements other than O and H
-    # 3. Balance O by adding H2O
-    # 4. Balance H by adding H+ (acidic) or OH- (basic)
-    # 5. Balance charge by adding electrons
-    # 6. Multiply half-reactions to make electrons equal
-    # 7. Add half-reactions and cancel common terms
+    # Balance the redox reaction
+    result = balance_redox_reaction(equation, "acidic")
+    redox_elements = result["redox_elements"]
     
-    # For now, let's handle specific cases like the SO2 + MnO4- reaction
-    if "SO2" in equation and "MnO4" in equation:
-        if environment == "acidic":
-            return "5 SO2 + 2 MnO4- + 2 H2O → 5 SO4^2- + 2 Mn^2+ + 4 H+"
-        else:  # basic
-            return "5 SO2 + 2 MnO4- + 6 OH- → 5 SO4^2- + 2 MnO2 + 3 H2O"
+    # Extract half-reactions
+    oxidation_half = None
+    reduction_half = None
     
-    # For other reactions, attempt regular balancing as a fallback
+    # Get oxidation and reduction elements
+    oxidized_element = None
+    reduced_element = None
+    
+    for element in redox_elements:
+        if element["change"] > 0:  # Oxidation (loss of electrons)
+            oxidized_element = element["element"]
+        elif element["change"] < 0:  # Reduction (gain of electrons)
+            reduced_element = element["element"]
+    
+    # Parse the reaction to identify reactants and products
     reactants, products = parse_chemical_equation(equation)
-    balanced_reactants, balanced_products = balance_equation(reactants, products)
-    return format_balanced_equation(balanced_reactants, balanced_products)
+    reactant_compounds = [formula for _, formula in reactants]
+    product_compounds = [formula for _, formula in products]
+    
+    # Identify the half-reactions from standard potentials
+    oxidation_half_key = None
+    reduction_half_key = None
+    
+    # Look for oxidized element in reactants and products
+    for compound in reactant_compounds:
+        if oxidized_element and re.search(f'({oxidized_element})', compound):
+            # Check if it's in our standard potentials
+            for key in STANDARD_REDUCTION_POTENTIALS:
+                species = key.split('/')
+                if oxidized_element in species[1] and f"{oxidized_element}^{element['reactant_oxidation']}+" in key:
+                    oxidation_half_key = key
+    
+    for compound in product_compounds:
+        if oxidized_element and re.search(f'({oxidized_element})', compound):
+            for key in STANDARD_REDUCTION_POTENTIALS:
+                species = key.split('/')
+                if oxidized_element in species[0] and f"{oxidized_element}^{element['product_oxidation']}+" in key:
+                    oxidation_half_key = key
+    
+    # Look for reduced element in reactants and products
+    for compound in reactant_compounds:
+        if reduced_element and re.search(f'({reduced_element})', compound):
+            for key in STANDARD_REDUCTION_POTENTIALS:
+                species = key.split('/')
+                if reduced_element in species[0] and f"{reduced_element}^{element['reactant_oxidation']}+" in key:
+                    reduction_half_key = key
+    
+    for compound in product_compounds:
+        if reduced_element and re.search(f'({reduced_element})', compound):
+            for key in STANDARD_REDUCTION_POTENTIALS:
+                species = key.split('/')
+                if reduced_element in species[1] and f"{reduced_element}^{element['product_oxidation']}+" in key:
+                    reduction_half_key = key
+    
+    # Direct lookup for common half-reactions
+    reaction_lookup = {
+        "Zn (s) + Cd2+ (aq) → Zn2+ (aq) + Cd (s)": {
+            "oxidation": "Zn2+/Zn",
+            "reduction": "Cd2+/Cd"
+        },
+        "Cu (s) + 2Ag+ (aq) → Cu2+ (aq) + 2Ag (s)": {
+            "oxidation": "Cu2+/Cu",
+            "reduction": "Ag+/Ag"
+        },
+        # Add more common reactions as needed
+    }
+    
+    # Try direct lookup first
+    clean_equation = re.sub(r'\s+', ' ', equation).strip()
+    if clean_equation in reaction_lookup:
+        oxidation_half_key = reaction_lookup[clean_equation]["oxidation"]
+        reduction_half_key = reaction_lookup[clean_equation]["reduction"]
+    
+    # Alternative approach: Parse the reaction and identify the redox pairs
+    if not oxidation_half_key or not reduction_half_key:
+        # For reactions like Zn (s) + Cd2+ (aq) → Zn2+ (aq) + Cd (s)
+        # Extract Zn2+/Zn and Cd2+/Cd
+        for half_key in STANDARD_REDUCTION_POTENTIALS:
+            species = half_key.split('/')
+            
+            # Check if both species from a half-reaction are in our equation
+            if (species[0].split('^')[0] in equation and 
+                species[1] in equation):
+                
+                # Determine if this is oxidation or reduction in our reaction
+                if species[0].split('^')[0] in ''.join(product_compounds) and species[1] in ''.join(reactant_compounds):
+                    oxidation_half_key = half_key
+                elif species[0].split('^')[0] in ''.join(reactant_compounds) and species[1] in ''.join(product_compounds):
+                    reduction_half_key = half_key
+    
+    # Get the standard reduction potentials
+    oxidation_potential = None
+    reduction_potential = None
+    
+    if oxidation_half_key:
+        oxidation_potential = STANDARD_REDUCTION_POTENTIALS.get(oxidation_half_key)
+    
+    if reduction_half_key:
+        reduction_potential = STANDARD_REDUCTION_POTENTIALS.get(reduction_half_key)
+    
+    # Calculate cell potential
+    cell_potential = None
+    if oxidation_potential is not None and reduction_potential is not None:
+        # For a galvanic cell, E°cell = E°cathode - E°anode
+        # E°cathode is the reduction potential
+        # E°anode is the oxidation potential (opposite of standard reduction potential)
+        cell_potential = reduction_potential - oxidation_potential
+    
+    # Determine if the reaction is favorable
+    favorable = None
+    if cell_potential is not None:
+        favorable = cell_potential > 0
+    
+    # Add results to the output
+    result["cell_potential"] = cell_potential
+    result["oxidation_half"] = oxidation_half_key
+    result["reduction_half"] = reduction_half_key
+    result["favorable"] = favorable
+    result["explanation"] = generate_favorability_explanation(
+        oxidation_half_key, reduction_half_key, 
+        oxidation_potential, reduction_potential, 
+        cell_potential, favorable
+    )
+    
+    return result
 
-def calculate_molar_ratios(balanced_equation):
+def generate_favorability_explanation(ox_half, red_half, ox_potential, red_potential, cell_potential, favorable):
     """
-    Calculate molar ratios between all species in a balanced equation.
+    Generate an explanation for why a reaction is favorable or not.
     
     Args:
-        balanced_equation (str): The balanced chemical equation
+        ox_half (str): Oxidation half-reaction
+        red_half (str): Reduction half-reaction
+        ox_potential (float): Oxidation potential
+        red_potential (float): Reduction potential
+        cell_potential (float): Cell potential
+        favorable (bool): Whether the reaction is favorable
         
     Returns:
-        dict: Dictionary of molar ratios between compounds
+        str: Explanation
     """
-    # Parse the balanced equation
-    reactants, products = parse_chemical_equation(balanced_equation)
+    if ox_half is None or red_half is None:
+        return "Could not determine standard potentials for this reaction."
     
-    # Get coefficients
-    reactant_coefs = {formula: coef for coef, formula in reactants}
-    product_coefs = {formula: coef for coef, formula in products}
+    explanation = []
     
-    # Combine into one dictionary
-    all_coefs = {**reactant_coefs, **product_coefs}
+    # Add half-reaction information
+    explanation.append(f"Oxidation half-reaction: {ox_half} (E° = {ox_potential:.2f} V)")
+    explanation.append(f"Reduction half-reaction: {red_half} (E° = {red_potential:.2f} V)")
     
-    # Calculate ratios
-    molar_ratios = {}
-    compounds = list(all_coefs.keys())
+    # Add cell potential calculation
+    explanation.append(f"Cell potential (E°cell) = E°(reduction) - E°(oxidation)")
+    explanation.append(f"E°cell = {red_potential:.2f} V - ({ox_potential:.2f} V) = {cell_potential:.2f} V")
     
-    for i, compound1 in enumerate(compounds):
-        molar_ratios[compound1] = {}
-        for compound2 in compounds:
-            if compound1 != compound2:
-                ratio = all_coefs[compound1] / all_coefs[compound2]
-                molar_ratios[compound1][compound2] = ratio
+    # Add favorability conclusion
+    if favorable:
+        explanation.append("Since E°cell > 0, this reaction is FAVORABLE at standard conditions.")
+        explanation.append("The reaction will proceed spontaneously in the forward direction.")
+    else:
+        explanation.append("Since E°cell < 0, this reaction is NOT FAVORABLE at standard conditions.")
+        explanation.append("The reaction would proceed spontaneously in the reverse direction.")
     
-    return molar_ratios
+    return "\n".join(explanation)
 
 def find_molar_ratio(equation, compound1, compound2):
     """
     Find the molar ratio between two compounds in a balanced equation.
     
     Args:
-        equation (str): The balanced chemical equation
+        equation (str): Balanced chemical equation
         compound1 (str): First compound
         compound2 (str): Second compound
         
     Returns:
         float: Molar ratio of compound1 to compound2
     """
-    molar_ratios = calculate_molar_ratios(equation)
-    
-    if compound1 in molar_ratios and compound2 in molar_ratios[compound1]:
-        return molar_ratios[compound1][compound2]
-    
-    return None
-
-def find_h_ratio_in_redox(redox_equation):
-    """
-    Find the molar ratio between SO2 and H+ in a balanced redox equation.
-    This is specifically for analyzing acid rain reactions.
-    
-    Args:
-        redox_equation (str): The balanced redox equation
+    try:
+        reactants, products = parse_chemical_equation(equation)
+        balanced_reactants, balanced_products = balance_equation(reactants, products)
         
-    Returns:
-        tuple: (SO2_coef, H+_coef, ratio)
-    """
-    # Parse the balanced equation
-    reactants, products = parse_chemical_equation(redox_equation)
-    
-    # Get all compounds with coefficients
-    reactant_compounds = {formula: coef for coef, formula in reactants}
-    product_compounds = {formula: coef for coef, formula in products}
-    
-    # Find SO2 in reactants
-    so2_coef = reactant_compounds.get("SO2", 0)
-    
-    # Find H+ in products - may be represented as H+ or H^+
-    h_coef = 0
-    for formula, coef in product_compounds.items():
-        if formula in ["H+", "H^+"]:
-            h_coef = coef
-            break
-    
-    # Calculate ratio if both compounds exist
-    if so2_coef > 0 and h_coef > 0:
-        ratio = (so2_coef, h_coef)
-        simplified_ratio = simplify_ratio(so2_coef, h_coef)
-        return so2_coef, h_coef, simplified_ratio
-    
-    return None, None, None
-
-def simplify_ratio(a, b):
-    """
-    Simplify a ratio of two numbers to lowest terms.
-    
-    Args:
-        a (int): First number
-        b (int): Second number
+        # Combine all compounds from both sides
+        all_compounds = {formula: coef for coef, formula in balanced_reactants + balanced_products}
         
-    Returns:
-        tuple: (simplified_a, simplified_b)
-    """
-    # Find GCD
-    def gcd(x, y):
-        while y:
-            x, y = y, x % y
-        return x
-    
-    common_divisor = gcd(a, b)
-    return (a // common_divisor, b // common_divisor)
+        # Check if both compounds exist in the equation
+        if compound1 in all_compounds and compound2 in all_compounds:
+            ratio = all_compounds[compound1] / all_compounds[compound2]
+            return ratio
+        
+        return None
+    except:
+        return None
 
 def analyze_acid_rain_reaction(equation):
     """
-    Analyze an acid rain reaction involving SO2 oxidation.
+    Analyze a reaction related to acid rain formation.
     
     Args:
-        equation (str): The chemical equation for SO2 oxidation
+        equation (str): Chemical equation for acid rain formation
         
     Returns:
-        dict: Analysis of the acid rain reaction
+        dict: Analysis results
     """
-    # Balance the equation in acidic environment
-    balanced_info = balance_redox_reaction(equation, "acidic")
+    # Balance the redox reaction
+    result = balance_redox_reaction(equation, "acidic")
     
-    # Find the SO2 to H+ ratio
-    so2_coef, h_coef, ratio = find_h_ratio_in_redox(balanced_info["balanced_equation"])
+    # Find SO2 and H+ in the equation if present
+    molar_ratio = None
     
-    return {
-        "balanced_equation": balanced_info["balanced_equation"],
-        "so2_coefficient": so2_coef,
-        "h_coefficient": h_coef,
-        "molar_ratio": ratio,
-        "redox_elements": balanced_info["redox_elements"],
-        "oxidizing_agents": balanced_info["oxidizing_agents"],
-        "reducing_agents": balanced_info["reducing_agents"]
-    }
+    # Check if SO2 is involved
+    if "SO2" in result["balanced_equation"]:
+        # Find molar ratio between SO2 and H+
+        if "H+" in result["balanced_equation"]:
+            ratio = find_molar_ratio(result["balanced_equation"], "SO2", "H+")
+            if ratio:
+                molar_ratio = (1, 1/ratio)  # Convert to SO2:H+ ratio
+    
+    # Add the molar ratio to the result
+    result["molar_ratio"] = molar_ratio
+    
+    return result

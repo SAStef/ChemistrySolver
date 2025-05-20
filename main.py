@@ -4,7 +4,8 @@ from stoichiometry import solve_stoichiometry_problem, solve_multireactant_probl
 from acid_base import identify_acid_base, analyze_compound_list
 from oxidation_state import calculate_oxidation_number, display_oxidation_result
 from redox_reactions import (balance_redox_reaction, identify_oxidation_changes, 
-                            find_molar_ratio, analyze_acid_rain_reaction)
+                            find_molar_ratio, analyze_acid_rain_reaction,
+                            determine_reaction_favorability)
 
 def handle_molar_mass():
     formula = input("Enter chemical formula: ")
@@ -103,6 +104,30 @@ def handle_redox_balance():
     except Exception as e:
         print(f"Error: {str(e)}")
 
+def handle_reaction_favorability():
+    equation = input("Enter the redox reaction equation: ")
+    
+    try:
+        result = determine_reaction_favorability(equation)
+        
+        print("\n=== Reaction Favorability Analysis ===")
+        print(f"Balanced equation: {result['balanced_equation']}")
+        
+        if result['cell_potential'] is not None:
+            print(f"\nStandard Cell Potential (E°cell): {result['cell_potential']:.2f} V")
+            
+            if result['favorable']:
+                print("\nResult: FAVORABLE at standard conditions")
+            else:
+                print("\nResult: NOT FAVORABLE at standard conditions")
+            
+            print("\nExplanation:")
+            print(result['explanation'])
+        else:
+            print("\nCould not determine favorability. Missing standard potentials for one or more half-reactions.")
+    except Exception as e:
+        print(f"Error: {str(e)}")
+
 def handle_molar_ratio():
     equation = input("Enter the balanced equation: ")
     compound1 = input("First compound: ")
@@ -152,6 +177,7 @@ def main():
         '8': handle_redox_balance,
         '9': handle_molar_ratio,
         '10': handle_acid_rain_analysis,
+        '11': handle_reaction_favorability,
         '0': exit
     }
     while True:
@@ -166,6 +192,7 @@ def main():
         print("8. Balance a redox reaction")
         print("9. Find molar ratio between compounds")
         print("10. Analyze acid rain reaction")
+        print("11. Determine redox reaction favorability")
         print("0. Exit")
         choice = input("Enter choice: ")
         action = actions.get(choice)
