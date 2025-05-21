@@ -21,8 +21,45 @@ from colligative_properties import (
     print_solution, FREEZING_POINT_CONSTANTS, BOILING_POINT_CONSTANTS
 )
 
+from insoluble_salts import handle_qualitative_analysis, analyze_specific_scenario
+
 # Import the chemical_name_to_formula module
 from chemical_name_to_formula import get_formula_from_name
+
+def handle_predefined_scenarios():
+    """
+    Handler function for solving predefined qualitative analysis scenarios.
+    """
+    print("\n=== Predefined Qualitative Analysis Scenarios ===")
+    print("1. W20_8: Unknown solution with possible Ag+, Ba2+, or Pb2+ cations")
+    # Add more scenarios here as they're defined
+    
+    choice = input("\nEnter scenario number: ")
+    
+    if choice == "1":
+        scenario_id = "W20_8"
+    else:
+        print("Invalid choice.")
+        return
+    
+    result = analyze_specific_scenario(scenario_id)
+    
+    if "error" in result:
+        print(f"Error: {result['error']}")
+        return
+    
+    print("\n=== Analysis Results ===")
+    print("\nAnalysis steps:")
+    for step in result["steps"]:
+        print(step)
+    
+    print("\nConclusion:")
+    print(result["conclusion"])
+    
+    if result["identified_cations"]:
+        print("\nIdentified cation(s):", ", ".join(result["identified_cations"]))
+    else:
+        print("\nNo cation could be identified with the given constraints.")
 
 def handle_chemical_name_to_formula():
     """
@@ -656,7 +693,9 @@ def main():
         '16': handle_boiling_point_elevation,    
         '17': handle_osmotic_pressure,           
         '18': handle_vapor_pressure_lowering,
-        '19': handle_chemical_name_to_formula,    
+        '19': handle_chemical_name_to_formula,
+        '20': handle_qualitative_analysis,       # Add this line
+        '21': handle_predefined_scenarios,       # Add this line  
         '0': exit
     }
     while True:
@@ -680,6 +719,10 @@ def main():
         print("16. Boiling point elevation (molecular weight)")
         print("17. Osmotic pressure (molecular weight)")
         print("18. Vapor pressure lowering (molecular weight)")
+        print("19. Convert chemical name to formula")
+        print("---- Qualitative Analysis ----")  # Add this line
+        print("20. Solve general qualitative analysis problem")  # Add this line
+        print("21. Solve predefined qualitative analysis scenario")  # Add this line
         print("0. Exit")
         
         choice = input("Enter choice: ")
