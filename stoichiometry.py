@@ -1,5 +1,5 @@
 from chemistry_solver.molar_mass import calculate_molar_mass
-from balancer import parse_chemical_equation, balance_equation, format_balanced_equation
+from chemistry_solver.balancer import parse_chemical_equation, balance_equation, format_balanced_equation
 
 
 def solve_stoichiometry_problem(equation, given_compound, given_mass, target_compound):

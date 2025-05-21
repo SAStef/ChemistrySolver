@@ -1,44 +1,49 @@
 """
-Common Terminal UI Components for Chemistry Problem Solver
+Common Terminal UI Functions for Chemistry Problem Solver
 """
+import os
+
+def clear_screen():
+    """Clear the terminal screen."""
+    # Check if the OS is Windows or Unix-like and use appropriate command
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+def display_title(title):
+    """Display a centered title for a module."""
+    clear_screen()
+    print("\n" + "="*50)
+    print(title.center(50))
+    print("="*50 + "\n")
 
 def display_main_menu():
-    """Display the main application menu."""
-    menu = """
-    [1] Electron Configuration Problem Solver
-    [2] Chemical Kinetics Problem Solver
-    [3] Chemical Equation Solver
-    [4] Thermodynamics Problem Solver
-    [0] Exit
-    """
-    print(menu)
+    """Display the main menu options."""
+    print("\nPlease select a module:")
+    print("  [1] Electron Configuration")
+    print("  [2] Chemical Kinetics")
+    print("  [3] Molar Mass Calculator")
+    print("  [4] Chemical Equation Balancer")
+    # Add more modules here
+    print("  [0] Exit")
 
 def get_user_choice():
-    """Get and validate user menu choice."""
-    return input("\nEnter choice: ").strip()
-
-def display_title(title_text):
-    """Display a formatted title."""
-    width = 60
-    border = "═" * width
-    
-    print("\n╔" + border + "╗")
-    print("║" + title_text.center(width) + "║")
-    print("╚" + border + "╝")
+    """Get user choice from the main menu."""
+    return input("\nEnter your choice: ").strip()
 
 def display_results_header():
-    """Display a results section header."""
-    print("\n==== RESULTS ====")
+    """Display a header for results section."""
+    print("\n" + "-"*50)
+    print("RESULTS".center(50))
+    print("-"*50)
 
-def display_steps(steps, skip_first=0):
-    """Display solution steps with optional skipping of first n steps."""
-    if not steps:
-        return
-        
-    print("\nDetailed analysis:")
-    for step in steps[skip_first:]:
+def display_steps(steps):
+    """Display solution steps."""
+    print("\n" + "-"*50)
+    print("SOLUTION STEPS".center(50))
+    print("-"*50)
+    
+    for step in steps:
         print(step)
 
 def wait_for_user():
-    """Wait for user to press Enter before continuing."""
-    input("\nPress Enter to return to menu...")
+    """Wait for user before continuing."""
+    input("\nPress Enter to continue...")

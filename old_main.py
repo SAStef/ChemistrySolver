@@ -1,5 +1,4 @@
 from chemistry_solver.molar_mass import calculate_molar_mass
-from balancer import parse_chemical_equation, balance_equation, format_balanced_equation
 from stoichiometry import (solve_stoichiometry_problem, solve_multireactant_problem, 
                         solve_gas_stoichiometry_problem)
 from acid_base import identify_acid_base, analyze_compound_list
@@ -243,58 +242,7 @@ def handle_mixture_thermal_equilibrium():
     for transfer in result["heat_transfers"]:
         print(f"  {transfer['name']}: {transfer['heat']:.2f} J (ΔT = {transfer['delta_t']:.2f} °C)")
         
-def handle_predefined_scenarios():
-    """
-    Handler function for solving predefined qualitative analysis scenarios.
-    """
-    print("\n=== Predefined Qualitative Analysis Scenarios ===")
-    print("1. W20_8: Unknown solution with possible Ag+, Ba2+, or Pb2+ cations")
-    # Add more scenarios here as they're defined
-    
-    choice = input("\nEnter scenario number: ")
-    
-    if choice == "1":
-        scenario_id = "W20_8"
-    else:
-        print("Invalid choice.")
-        return
-    
-    result = analyze_specific_scenario(scenario_id)
-    
-    if "error" in result:
-        print(f"Error: {result['error']}")
-        return
-    
-    print("\n=== Analysis Results ===")
-    print("\nAnalysis steps:")
-    for step in result["steps"]:
-        print(step)
-    
-    print("\nConclusion:")
-    print(result["conclusion"])
-    
-    if result["identified_cations"]:
-        print("\nIdentified cation(s):", ", ".join(result["identified_cations"]))
-    else:
-        print("\nNo cation could be identified with the given constraints.")
 
-def handle_chemical_name_to_formula():
-    """
-    Handler function for converting chemical names to formulas.
-    """
-    print("\n=== Chemical Name to Formula Converter ===")
-    name = input("Enter chemical name: ")
-    result = get_formula_from_name(name)
-    
-    if result['success']:
-        print(f"\nName: {result['name']}")
-        print(f"Formula: {result['formula']}")
-        print(f"IUPAC Name: {result['iupac_name']}")
-        print(f"Molecular Weight: {result['weight']} g/mol")
-        return result['formula']
-    else:
-        print(f"\nError: {result['error']}")
-        return None
 
 def handle_freezing_point_depression():
     """
@@ -467,38 +415,6 @@ def handle_vapor_pressure_lowering():
     
     print_solution(result, "Vapor Pressure Lowering")
     
-def handle_molar_mass():
-    """
-    Handler function for calculating molar mass of a compound.
-    """
-    # Ask if the user wants to enter a chemical name or formula
-    input_type = input("Do you want to enter a chemical name or formula? (name/formula): ").lower()
-    
-    formula = None
-    if input_type == 'name':
-        print("\nConverting chemical name to formula...")
-        formula = handle_chemical_name_to_formula()
-        if not formula:
-            formula = input("\nFallback: Please enter chemical formula directly: ")
-    else:
-        formula = input("Enter chemical formula: ")
-    
-    result = calculate_molar_mass(formula)
-    if result['success']:
-        print(f"Molar mass: {result['molar_mass']:.4f} g/mol")
-        for e in result['composition']:
-            print(f"  {e['element']}: {e['count']} × {e['atomic_mass']:.4f} u = {e['contribution']:.4f}")
-    else:
-        print(f"Error: {result['error']}")
-
-def handle_balance():
-    eq = input("Enter equation (e.g., H2 + O2 -> H2O): ")
-    try:
-        r, p = parse_chemical_equation(eq)
-        br, bp = balance_equation(r, p)
-        print("Balanced equation:", format_balanced_equation(br, bp))
-    except Exception as e:
-        print("Error:", str(e))
 
 def handle_stoichiometry():
     eq = input("Equation: ")
