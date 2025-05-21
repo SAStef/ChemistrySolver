@@ -10,7 +10,7 @@ This module includes functions to calculate various colligative properties:
 It integrates with the existing molar mass calculation functionality.
 """
 
-from molar_mass import calculate_molar_mass
+from chemistry_solver.molar_mass import calculate_molar_mass
 
 # Common freezing point depression constants (Kf) in °C/m
 FREEZING_POINT_CONSTANTS = {

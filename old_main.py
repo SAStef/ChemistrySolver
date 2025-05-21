@@ -1,4 +1,4 @@
-from molar_mass import calculate_molar_mass
+from chemistry_solver.molar_mass import calculate_molar_mass
 from balancer import parse_chemical_equation, balance_equation, format_balanced_equation
 from stoichiometry import (solve_stoichiometry_problem, solve_multireactant_problem, 
                         solve_gas_stoichiometry_problem)

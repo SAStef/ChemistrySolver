@@ -1,7 +1,7 @@
 from sympy import Matrix, lcm
 from fractions import Fraction
 from utils import parse_term, split_equation, gcd_list
-from molar_mass import check_molmass
+from chemistry_solver.molar_mass import check_molmass
 import molmass
 
 def count_elements(formula):
