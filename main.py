@@ -21,12 +21,44 @@ from colligative_properties import (
     print_solution, FREEZING_POINT_CONSTANTS, BOILING_POINT_CONSTANTS
 )
 
+# Import the chemical_name_to_formula module
+from chemical_name_to_formula import get_formula_from_name
+
+def handle_chemical_name_to_formula():
+    """
+    Handler function for converting chemical names to formulas.
+    """
+    print("\n=== Chemical Name to Formula Converter ===")
+    name = input("Enter chemical name: ")
+    result = get_formula_from_name(name)
+    
+    if result['success']:
+        print(f"\nName: {result['name']}")
+        print(f"Formula: {result['formula']}")
+        print(f"IUPAC Name: {result['iupac_name']}")
+        print(f"Molecular Weight: {result['weight']} g/mol")
+        return result['formula']
+    else:
+        print(f"\nError: {result['error']}")
+        return None
+
 def handle_freezing_point_depression():
     """
     Handler function for solving molecular weight problems using freezing point depression.
     """
     print("\n=== Freezing Point Depression Calculator ===")
-    solvent = input("Enter solvent formula (e.g., 'H2O', 'C6H6' for benzene): ")
+    
+    # Ask if the user wants to enter a chemical name or formula
+    input_type = input("Do you want to enter a chemical name or formula for the solvent? (name/formula): ").lower()
+    
+    solvent = None
+    if input_type == 'name':
+        print("\nConverting chemical name to formula...")
+        solvent = handle_chemical_name_to_formula()
+        if not solvent:
+            solvent = input("\nFallback: Please enter solvent formula directly (e.g., 'H2O', 'C6H6' for benzene): ")
+    else:
+        solvent = input("Enter solvent formula (e.g., 'H2O', 'C6H6' for benzene): ")
     
     # Try to lookup Kf in constants
     k_f = None
@@ -71,7 +103,18 @@ def handle_boiling_point_elevation():
     Handler function for solving molecular weight problems using boiling point elevation.
     """
     print("\n=== Boiling Point Elevation Calculator ===")
-    solvent = input("Enter solvent formula (e.g., 'H2O', 'C6H6' for benzene): ")
+    
+    # Ask if the user wants to enter a chemical name or formula
+    input_type = input("Do you want to enter a chemical name or formula for the solvent? (name/formula): ").lower()
+    
+    solvent = None
+    if input_type == 'name':
+        print("\nConverting chemical name to formula...")
+        solvent = handle_chemical_name_to_formula()
+        if not solvent:
+            solvent = input("\nFallback: Please enter solvent formula directly (e.g., 'H2O', 'C6H6' for benzene): ")
+    else:
+        solvent = input("Enter solvent formula (e.g., 'H2O', 'C6H6' for benzene): ")
     
     # Try to lookup Kb in constants
     k_b = None
@@ -143,7 +186,18 @@ def handle_vapor_pressure_lowering():
     """
     print("\n=== Vapor Pressure Lowering Calculator ===")
     
-    solvent = input("Enter solvent formula (e.g., 'H2O', 'C6H6' for benzene): ")
+    # Ask if the user wants to enter a chemical name or formula
+    input_type = input("Do you want to enter a chemical name or formula for the solvent? (name/formula): ").lower()
+    
+    solvent = None
+    if input_type == 'name':
+        print("\nConverting chemical name to formula...")
+        solvent = handle_chemical_name_to_formula()
+        if not solvent:
+            solvent = input("\nFallback: Please enter solvent formula directly (e.g., 'H2O', 'C6H6' for benzene): ")
+    else:
+        solvent = input("Enter solvent formula (e.g., 'H2O', 'C6H6' for benzene): ")
+    
     P_pure = float(input("Enter vapor pressure of pure solvent: "))
     P_solution = float(input("Enter vapor pressure of solution: "))
     solute_mass = float(input("Enter mass of solute (g): "))
@@ -160,7 +214,21 @@ def handle_vapor_pressure_lowering():
     print_solution(result, "Vapor Pressure Lowering")
     
 def handle_molar_mass():
-    formula = input("Enter chemical formula: ")
+    """
+    Handler function for calculating molar mass of a compound.
+    """
+    # Ask if the user wants to enter a chemical name or formula
+    input_type = input("Do you want to enter a chemical name or formula? (name/formula): ").lower()
+    
+    formula = None
+    if input_type == 'name':
+        print("\nConverting chemical name to formula...")
+        formula = handle_chemical_name_to_formula()
+        if not formula:
+            formula = input("\nFallback: Please enter chemical formula directly: ")
+    else:
+        formula = input("Enter chemical formula: ")
+    
     result = calculate_molar_mass(formula)
     if result['success']:
         print(f"Molar mass: {result['molar_mass']:.4f} g/mol")
@@ -587,7 +655,8 @@ def main():
         '15': handle_freezing_point_depression,  
         '16': handle_boiling_point_elevation,    
         '17': handle_osmotic_pressure,           
-        '18': handle_vapor_pressure_lowering,    
+        '18': handle_vapor_pressure_lowering,
+        '19': handle_chemical_name_to_formula,    
         '0': exit
     }
     while True:
