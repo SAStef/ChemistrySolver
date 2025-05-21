@@ -2,6 +2,16 @@
 Module for solving thermodynamics and heat transfer problems in chemistry.
 """
 
+import math
+from typing import Dict, List, Tuple, Any
+
+# Gas constant in different units
+R_IDEAL_GAS = {
+    'J/(mol·K)': 8.314,
+    'kJ/(mol·K)': 0.008314,
+    'L·atm/(mol·K)': 0.0821
+}
+
 def calculate_heat(mass, specific_heat, delta_t):
     """
     Calculate heat energy transfer using q = m × c × ΔT.
@@ -327,3 +337,389 @@ def solve_mixture_problem(substances):
         "heat_transfers": heat_transfers,
         "steps": steps
     }
+
+# Clausius-Clapeyron equation functions for pressure-temperature relationships
+
+def calculate_boiling_point_with_pressure(
+    normal_boiling_point_c: float, 
+    heat_of_vaporization: float,  # in kJ/mol
+    initial_pressure: float,      # in atm
+    final_pressure: float,        # in atm
+) -> Dict[str, Any]:
+    """
+    Calculate the new boiling point when pressure changes using the Clausius-Clapeyron equation.
+    
+    Parameters:
+        normal_boiling_point_c (float): The normal boiling point in degrees Celsius
+        heat_of_vaporization (float): The heat of vaporization in kJ/mol
+        initial_pressure (float): The initial pressure in atm
+        final_pressure (float): The final pressure in atm
+        
+    Returns:
+        Dict[str, Any]: Dictionary containing results and solution steps
+    """
+    # Convert boiling point to Kelvin
+    normal_boiling_point_k = normal_boiling_point_c + 273.15
+    
+    # Gas constant in kJ/(mol·K)
+    R = R_IDEAL_GAS['kJ/(mol·K)']
+    
+    # Calculate the new boiling point using the integrated Clausius-Clapeyron equation
+    # ln(P2/P1) = -(ΔHvap/R) * (1/T2 - 1/T1)
+    # Rearranging: 1/T2 = 1/T1 - (R/ΔHvap) * ln(P2/P1)
+    
+    # Calculate 1/T2
+    inv_t2 = (1/normal_boiling_point_k) - (R/heat_of_vaporization) * math.log(final_pressure/initial_pressure)
+    
+    # Calculate T2
+    new_boiling_point_k = 1/inv_t2
+    new_boiling_point_c = new_boiling_point_k - 273.15
+    
+    # Build solution steps
+    steps = [
+        f"Step 1: Convert the normal boiling point to Kelvin:",
+        f"T₁ = {normal_boiling_point_c} °C + 273.15 = {normal_boiling_point_k:.2f} K",
+        f"",
+        f"Step 2: Use the Clausius-Clapeyron equation to find the new boiling point:",
+        f"ln(P₂/P₁) = -(ΔHvap/R) × (1/T₂ - 1/T₁)",
+        f"",
+        f"Rearranging for 1/T₂:",
+        f"1/T₂ = 1/T₁ - (R/ΔHvap) × ln(P₂/P₁)",
+        f"",
+        f"Step 3: Substitute the values:",
+        f"1/T₂ = 1/{normal_boiling_point_k:.2f} K - ({R:.6f} kJ/(mol·K)/{heat_of_vaporization} kJ/mol) × ln({final_pressure}/{initial_pressure})",
+        f"1/T₂ = {1/normal_boiling_point_k:.6f} K⁻¹ - {R/heat_of_vaporization:.6f} × {math.log(final_pressure/initial_pressure):.6f}",
+        f"1/T₂ = {1/normal_boiling_point_k:.6f} K⁻¹ - {(R/heat_of_vaporization) * math.log(final_pressure/initial_pressure):.6f} K⁻¹",
+        f"1/T₂ = {inv_t2:.6f} K⁻¹",
+        f"",
+        f"Step 4: Calculate T₂:",
+        f"T₂ = 1/({inv_t2:.6f} K⁻¹) = {new_boiling_point_k:.2f} K",
+        f"",
+        f"Step 5: Convert back to Celsius:",
+        f"T₂ = {new_boiling_point_k:.2f} K - 273.15 = {new_boiling_point_c:.2f} °C"
+    ]
+    
+    return {
+        "normal_boiling_point_c": normal_boiling_point_c,
+        "normal_boiling_point_k": normal_boiling_point_k,
+        "heat_of_vaporization": heat_of_vaporization,
+        "initial_pressure": initial_pressure,
+        "final_pressure": final_pressure,
+        "new_boiling_point_k": new_boiling_point_k,
+        "new_boiling_point_c": new_boiling_point_c,
+        "steps": steps
+    }
+
+def calculate_pressure_with_temperature(
+    normal_boiling_point_c: float,
+    heat_of_vaporization: float,  # in kJ/mol
+    initial_pressure: float,      # in atm
+    final_temperature_c: float    # in °C
+) -> Dict[str, Any]:
+    """
+    Calculate the vapor pressure at a given temperature using the Clausius-Clapeyron equation.
+    
+    Parameters:
+        normal_boiling_point_c (float): The normal boiling point in degrees Celsius
+        heat_of_vaporization (float): The heat of vaporization in kJ/mol
+        initial_pressure (float): The initial pressure in atm (typically 1 atm)
+        final_temperature_c (float): The temperature at which to calculate the vapor pressure, in °C
+        
+    Returns:
+        Dict[str, Any]: Dictionary containing results and solution steps
+    """
+    # Convert temperatures to Kelvin
+    normal_boiling_point_k = normal_boiling_point_c + 273.15
+    final_temperature_k = final_temperature_c + 273.15
+    
+    # Gas constant in kJ/(mol·K)
+    R = R_IDEAL_GAS['kJ/(mol·K)']
+    
+    # Calculate the new pressure using the integrated Clausius-Clapeyron equation
+    # ln(P2/P1) = -(ΔHvap/R) * (1/T2 - 1/T1)
+    
+    exponent = -(heat_of_vaporization/R) * (1/final_temperature_k - 1/normal_boiling_point_k)
+    final_pressure = initial_pressure * math.exp(exponent)
+    
+    # Build solution steps
+    steps = [
+        f"Step 1: Convert temperatures to Kelvin:",
+        f"T₁ = {normal_boiling_point_c} °C + 273.15 = {normal_boiling_point_k:.2f} K",
+        f"T₂ = {final_temperature_c} °C + 273.15 = {final_temperature_k:.2f} K",
+        f"",
+        f"Step 2: Use the Clausius-Clapeyron equation to find the new pressure:",
+        f"ln(P₂/P₁) = -(ΔHvap/R) × (1/T₂ - 1/T₁)",
+        f"",
+        f"Step 3: Substitute the values:",
+        f"ln(P₂/{initial_pressure}) = -({heat_of_vaporization} kJ/mol/{R:.6f} kJ/(mol·K)) × (1/{final_temperature_k:.2f} K - 1/{normal_boiling_point_k:.2f} K)",
+        f"ln(P₂/{initial_pressure}) = -{heat_of_vaporization/R:.2f} × ({1/final_temperature_k:.6f} K⁻¹ - {1/normal_boiling_point_k:.6f} K⁻¹)",
+        f"ln(P₂/{initial_pressure}) = -{heat_of_vaporization/R:.2f} × {1/final_temperature_k - 1/normal_boiling_point_k:.6f} K⁻¹",
+        f"ln(P₂/{initial_pressure}) = {exponent:.6f}",
+        f"",
+        f"Step 4: Calculate P₂:",
+        f"P₂ = {initial_pressure} × e^({exponent:.6f})",
+        f"P₂ = {initial_pressure} × {math.exp(exponent):.6f}",
+        f"P₂ = {final_pressure:.6f} atm"
+    ]
+    
+    return {
+        "normal_boiling_point_c": normal_boiling_point_c,
+        "normal_boiling_point_k": normal_boiling_point_k,
+        "heat_of_vaporization": heat_of_vaporization,
+        "initial_pressure": initial_pressure,
+        "final_temperature_c": final_temperature_c,
+        "final_temperature_k": final_temperature_k,
+        "final_pressure": final_pressure,
+        "steps": steps
+    }
+
+def calculate_heat_of_vaporization(
+    temp1_c: float,
+    pressure1: float,  # in atm
+    temp2_c: float,
+    pressure2: float   # in atm
+) -> Dict[str, Any]:
+    """
+    Calculate the heat of vaporization using two pressure-temperature data points.
+    
+    Parameters:
+        temp1_c (float): First temperature in degrees Celsius
+        pressure1 (float): First pressure in atm
+        temp2_c (float): Second temperature in degrees Celsius
+        pressure2 (float): Second pressure in atm
+        
+    Returns:
+        Dict[str, Any]: Dictionary containing results and solution steps
+    """
+    # Convert temperatures to Kelvin
+    temp1_k = temp1_c + 273.15
+    temp2_k = temp2_c + 273.15
+    
+    # Gas constant in kJ/(mol·K)
+    R = R_IDEAL_GAS['kJ/(mol·K)']
+    
+    # Calculate heat of vaporization using the Clausius-Clapeyron equation
+    # ln(P2/P1) = -(ΔHvap/R) * (1/T2 - 1/T1)
+    # Rearranging: ΔHvap = -R * ln(P2/P1) / (1/T2 - 1/T1)
+    
+    heat_of_vaporization = -R * math.log(pressure2/pressure1) / (1/temp2_k - 1/temp1_k)
+    
+    # Build solution steps
+    steps = [
+        f"Step 1: Convert temperatures to Kelvin:",
+        f"T₁ = {temp1_c} °C + 273.15 = {temp1_k:.2f} K",
+        f"T₂ = {temp2_c} °C + 273.15 = {temp2_k:.2f} K",
+        f"",
+        f"Step 2: Rearrange the Clausius-Clapeyron equation to solve for the heat of vaporization:",
+        f"ln(P₂/P₁) = -(ΔHvap/R) × (1/T₂ - 1/T₁)",
+        f"ΔHvap = -R × ln(P₂/P₁) / (1/T₂ - 1/T₁)",
+        f"",
+        f"Step 3: Substitute the values:",
+        f"ΔHvap = -{R:.6f} kJ/(mol·K) × ln({pressure2}/{pressure1}) / (1/{temp2_k:.2f} K - 1/{temp1_k:.2f} K)",
+        f"ΔHvap = -{R:.6f} kJ/(mol·K) × {math.log(pressure2/pressure1):.6f} / ({1/temp2_k:.6f} K⁻¹ - {1/temp1_k:.6f} K⁻¹)",
+        f"ΔHvap = -{R:.6f} kJ/(mol·K) × {math.log(pressure2/pressure1):.6f} / {1/temp2_k - 1/temp1_k:.6f} K⁻¹",
+        f"ΔHvap = {heat_of_vaporization:.2f} kJ/mol"
+    ]
+    
+    return {
+        "temp1_c": temp1_c,
+        "temp1_k": temp1_k,
+        "pressure1": pressure1,
+        "temp2_c": temp2_c,
+        "temp2_k": temp2_k,
+        "pressure2": pressure2,
+        "heat_of_vaporization": heat_of_vaporization,
+        "steps": steps
+    }
+
+def handle_pressure_boiling_point_calculation():
+    """
+    Handler function for calculating how pressure affects boiling point using the Clausius-Clapeyron equation.
+    """
+    print("\n=== Pressure Effect on Boiling Point Calculator ===")
+    print("This calculates how pressure changes affect boiling point using the Clausius-Clapeyron equation.")
+    
+    normal_boiling_point_c = float(input("Enter the normal boiling point (°C): "))
+    heat_of_vaporization = float(input("Enter the heat of vaporization (kJ/mol): "))
+    initial_pressure = float(input("Enter the initial pressure (atm): "))
+    final_pressure = float(input("Enter the final pressure (atm): "))
+    
+    result = calculate_boiling_point_with_pressure(
+        normal_boiling_point_c=normal_boiling_point_c,
+        heat_of_vaporization=heat_of_vaporization,
+        initial_pressure=initial_pressure,
+        final_pressure=final_pressure
+    )
+    
+    print("\n=== Solution ===")
+    for step in result["steps"]:
+        print(step)
+    
+    print(f"\nFinal Result:")
+    print(f"At {result['final_pressure']} atm, the boiling point of the substance is {result['new_boiling_point_c']:.2f} °C")
+
+def handle_temperature_pressure_calculation():
+    """
+    Handler function for calculating vapor pressure at a given temperature using the Clausius-Clapeyron equation.
+    """
+    print("\n=== Vapor Pressure Calculator ===")
+    print("This calculates the vapor pressure at a given temperature using the Clausius-Clapeyron equation.")
+    
+    normal_boiling_point_c = float(input("Enter the normal boiling point (°C): "))
+    heat_of_vaporization = float(input("Enter the heat of vaporization (kJ/mol): "))
+    initial_pressure = float(input("Enter the reference pressure (usually 1 atm): "))
+    final_temperature_c = float(input("Enter the temperature for vapor pressure calculation (°C): "))
+    
+    result = calculate_pressure_with_temperature(
+        normal_boiling_point_c=normal_boiling_point_c,
+        heat_of_vaporization=heat_of_vaporization,
+        initial_pressure=initial_pressure,
+        final_temperature_c=final_temperature_c
+    )
+    
+    print("\n=== Solution ===")
+    for step in result["steps"]:
+        print(step)
+    
+    print(f"\nFinal Result:")
+    print(f"At {result['final_temperature_c']:.2f} °C, the vapor pressure of the substance is {result['final_pressure']:.6f} atm")
+
+def handle_heat_of_vaporization_calculation():
+    """
+    Handler function for calculating heat of vaporization using two P-T data points.
+    """
+    print("\n=== Heat of Vaporization Calculator ===")
+    print("This calculates the heat of vaporization using two pressure-temperature data points.")
+    
+    temp1_c = float(input("Enter the first temperature (°C): "))
+    pressure1 = float(input("Enter the first pressure (atm): "))
+    temp2_c = float(input("Enter the second temperature (°C): "))
+    pressure2 = float(input("Enter the second pressure (atm): "))
+    
+    result = calculate_heat_of_vaporization(
+        temp1_c=temp1_c,
+        pressure1=pressure1,
+        temp2_c=temp2_c,
+        pressure2=pressure2
+    )
+    
+    print("\n=== Solution ===")
+    for step in result["steps"]:
+        print(step)
+    
+    print(f"\nFinal Result:")
+    print(f"The heat of vaporization is {result['heat_of_vaporization']:.2f} kJ/mol")
+
+def main_menu():
+    """
+    Main menu function for the thermodynamics calculator.
+    """
+    while True:
+        print("\n=== Thermodynamics Calculator ===")
+        print("1. Heat transfer and thermal equilibrium")
+        print("2. Effect of pressure on boiling point")
+        print("3. Calculate vapor pressure at a temperature")
+        print("4. Calculate heat of vaporization from P-T data")
+        print("0. Exit")
+        
+        choice = input("Enter your choice (0-4): ")
+        
+        if choice == "1":
+            # Submenu for heat transfer problems
+            print("\n=== Heat Transfer Calculations ===")
+            print("1. Simple heat transfer between two substances")
+            print("2. Heat transfer using molar heat capacities")
+            print("3. General mixture problem (multiple substances)")
+            sub_choice = input("Enter your choice (1-3): ")
+            
+            if sub_choice == "1":
+                # Simple heat transfer
+                mass1 = float(input("Enter mass of substance 1 (g): "))
+                specific_heat1 = float(input("Enter specific heat of substance 1 (J/(g·K)): "))
+                initial_temp1 = float(input("Enter initial temperature of substance 1 (°C): "))
+                mass2 = float(input("Enter mass of substance 2 (g): "))
+                specific_heat2 = float(input("Enter specific heat of substance 2 (J/(g·K)): "))
+                initial_temp2 = float(input("Enter initial temperature of substance 2 (°C): "))
+                
+                result = handle_heat_transfer_problem(
+                    mass1, specific_heat1, initial_temp1,
+                    mass2, specific_heat2, initial_temp2
+                )
+                
+                print("\n=== Solution ===")
+                for step in result["steps"]:
+                    print(step)
+                
+                print(f"\nFinal Result:")
+                print(f"Final equilibrium temperature: {result['final_temp']:.2f} °C")
+                
+            elif sub_choice == "2":
+                # Heat transfer with molar heat capacities
+                mass1 = float(input("Enter mass of substance 1 (g): "))
+                molar_mass1 = float(input("Enter molar mass of substance 1 (g/mol): "))
+                molar_heat_capacity1 = float(input("Enter molar heat capacity of substance 1 (J/(mol·K)): "))
+                initial_temp1 = float(input("Enter initial temperature of substance 1 (°C): "))
+                mass2 = float(input("Enter mass of substance 2 (g): "))
+                molar_mass2 = float(input("Enter molar mass of substance 2 (g/mol): "))
+                molar_heat_capacity2 = float(input("Enter molar heat capacity of substance 2 (J/(mol·K)): "))
+                initial_temp2 = float(input("Enter initial temperature of substance 2 (°C): "))
+                
+                result = handle_heat_transfer_with_molar_heat(
+                    mass1, molar_mass1, molar_heat_capacity1, initial_temp1,
+                    mass2, molar_mass2, molar_heat_capacity2, initial_temp2
+                )
+                
+                print("\n=== Solution ===")
+                for step in result["steps"]:
+                    print(step)
+                
+                print(f"\nFinal Result:")
+                print(f"Final equilibrium temperature: {result['final_temp']:.2f} °C")
+                
+            elif sub_choice == "3":
+                # General mixture problem
+                num_substances = int(input("Enter the number of substances: "))
+                substances = []
+                
+                for i in range(num_substances):
+                    print(f"\nSubstance {i+1}:")
+                    name = input("Enter name: ")
+                    mass = float(input("Enter mass (g): "))
+                    specific_heat = float(input("Enter specific heat capacity (J/(g·K)): "))
+                    initial_temp = float(input("Enter initial temperature (°C): "))
+                    
+                    substance = {
+                        'name': name,
+                        'mass': mass,
+                        'specific_heat': specific_heat,
+                        'initial_temp': initial_temp
+                    }
+                    substances.append(substance)
+                
+                result = solve_mixture_problem(substances)
+                
+                print("\n=== Solution ===")
+                for step in result["steps"]:
+                    print(step)
+                
+                print(f"\nFinal Result:")
+                print(f"Final equilibrium temperature: {result['final_temp']:.2f} °C")
+            
+        elif choice == "2":
+            handle_pressure_boiling_point_calculation()
+            
+        elif choice == "3":
+            handle_temperature_pressure_calculation()
+            
+        elif choice == "4":
+            handle_heat_of_vaporization_calculation()
+            
+        elif choice == "0":
+            print("Exiting program. Goodbye!")
+            break
+            
+        else:
+            print("Invalid choice. Please try again.")
+
+if __name__ == "__main__":
+    main_menu()
