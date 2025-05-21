@@ -26,6 +26,213 @@ from insoluble_salts import handle_qualitative_analysis, analyze_specific_scenar
 # Import the chemical_name_to_formula module
 from chemical_name_to_formula import get_formula_from_name
 
+def handle_heat_calculation():
+    """
+    Handler function for calculating heat using q = m × c × ΔT.
+    """
+    print("\n=== Heat Transfer Calculation ===")
+    mass = float(input("Enter mass (g): "))
+    specific_heat = float(input("Enter specific heat capacity (J/(g·K)): "))
+    initial_temp = float(input("Enter initial temperature (°C): "))
+    final_temp = float(input("Enter final temperature (°C): "))
+    
+    delta_t = final_temp - initial_temp
+    heat = calculate_heat(mass, specific_heat, delta_t)
+    
+    print(f"\nResults:")
+    print(f"Temperature change (ΔT): {delta_t:.2f} °C")
+    print(f"Heat transferred (q): {heat:.2f} J")
+    print(f"Heat transferred: {heat/1000:.2f} kJ")
+
+def handle_temperature_change_calculation():
+    """
+    Handler function for calculating temperature change using ΔT = q / (m × c).
+    """
+    print("\n=== Temperature Change Calculation ===")
+    heat = float(input("Enter heat energy (J): "))
+    mass = float(input("Enter mass (g): "))
+    specific_heat = float(input("Enter specific heat capacity (J/(g·K)): "))
+    
+    delta_t = calculate_temperature_change(heat, mass, specific_heat)
+    
+    print(f"\nResults:")
+    print(f"Temperature change (ΔT): {delta_t:.2f} °C")
+
+def handle_final_temperature_calculation():
+    """
+    Handler function for calculating final temperature.
+    """
+    print("\n=== Final Temperature Calculation ===")
+    initial_temp = float(input("Enter initial temperature (°C): "))
+    delta_t = float(input("Enter temperature change (°C): "))
+    
+    final_temp = calculate_final_temperature(initial_temp, delta_t)
+    
+    print(f"\nResults:")
+    print(f"Final temperature: {final_temp:.2f} °C")
+
+def handle_thermal_equilibrium():
+    """
+    Handler function for solving thermal equilibrium problems.
+    """
+    print("\n=== Thermal Equilibrium Problem ===")
+    print("This will calculate the final temperature when two substances reach thermal equilibrium.")
+    
+    # Substance 1
+    print("\nSubstance 1:")
+    mass1 = float(input("Enter mass (g): "))
+    specific_heat1 = float(input("Enter specific heat capacity (J/(g·K)): "))
+    initial_temp1 = float(input("Enter initial temperature (°C): "))
+    
+    # Substance 2
+    print("\nSubstance 2:")
+    mass2 = float(input("Enter mass (g): "))
+    specific_heat2 = float(input("Enter specific heat capacity (J/(g·K)): "))
+    initial_temp2 = float(input("Enter initial temperature (°C): "))
+    
+    # Solve problem
+    result = handle_heat_transfer_problem(
+        mass1, specific_heat1, initial_temp1,
+        mass2, specific_heat2, initial_temp2
+    )
+    
+    print("\n=== Solution ===")
+    for step in result["steps"]:
+        print(step)
+    
+    print(f"\nFinal equilibrium temperature: {result['final_temp']:.2f} °C")
+    print(f"Heat transferred by substance 1: {result['heat_transferred_1']:.2f} J")
+    print(f"Heat transferred by substance 2: {result['heat_transferred_2']:.2f} J")
+
+def handle_thermal_equilibrium_molar():
+    """
+    Handler function for solving thermal equilibrium problems using molar heat capacities.
+    """
+    print("\n=== Thermal Equilibrium Problem (Molar Heat Capacities) ===")
+    print("This will calculate the final temperature when two substances reach thermal equilibrium.")
+    
+    # Substance 1
+    print("\nSubstance 1:")
+    name1 = input("Enter substance name or chemical formula: ")
+    mass1 = float(input("Enter mass (g): "))
+    
+    # Try to calculate molar mass if a chemical formula is given
+    try:
+        molar_mass_result = calculate_molar_mass(name1)
+        if molar_mass_result['success']:
+            molar_mass1 = molar_mass_result['molar_mass']
+            print(f"Calculated molar mass: {molar_mass1:.4f} g/mol")
+        else:
+            print("Could not automatically calculate molar mass.")
+            molar_mass1 = float(input("Enter molar mass (g/mol): "))
+    except:
+        print("Could not automatically calculate molar mass.")
+        molar_mass1 = float(input("Enter molar mass (g/mol): "))
+    
+    molar_heat_capacity1 = float(input("Enter molar heat capacity (J/(mol·K)): "))
+    initial_temp1 = float(input("Enter initial temperature (°C): "))
+    
+    # Substance 2
+    print("\nSubstance 2:")
+    name2 = input("Enter substance name or chemical formula: ")
+    mass2 = float(input("Enter mass (g): "))
+    
+    # Try to calculate molar mass if a chemical formula is given
+    try:
+        molar_mass_result = calculate_molar_mass(name2)
+        if molar_mass_result['success']:
+            molar_mass2 = molar_mass_result['molar_mass']
+            print(f"Calculated molar mass: {molar_mass2:.4f} g/mol")
+        else:
+            print("Could not automatically calculate molar mass.")
+            molar_mass2 = float(input("Enter molar mass (g/mol): "))
+    except:
+        print("Could not automatically calculate molar mass.")
+        molar_mass2 = float(input("Enter molar mass (g/mol): "))
+    
+    molar_heat_capacity2 = float(input("Enter molar heat capacity (J/(mol·K)): "))
+    initial_temp2 = float(input("Enter initial temperature (°C): "))
+    
+    # Solve problem
+    result = handle_heat_transfer_with_molar_heat(
+        mass1, molar_mass1, molar_heat_capacity1, initial_temp1,
+        mass2, molar_mass2, molar_heat_capacity2, initial_temp2
+    )
+    
+    print("\n=== Solution ===")
+    for step in result["steps"]:
+        print(step)
+    
+    print(f"\nFinal equilibrium temperature: {result['final_temp']:.2f} °C")
+    print(f"Heat transferred by substance 1: {result['heat_transferred_1']:.2f} J")
+    print(f"Heat transferred by substance 2: {result['heat_transferred_2']:.2f} J")
+
+def handle_mixture_thermal_equilibrium():
+    """
+    Handler function for solving thermal equilibrium problems with multiple substances.
+    """
+    print("\n=== Multiple Substance Thermal Equilibrium Problem ===")
+    print("This will calculate the final temperature when multiple substances reach thermal equilibrium.")
+    
+    substance_count = int(input("Enter number of substances: "))
+    substances = []
+    
+    for i in range(substance_count):
+        print(f"\nSubstance {i+1}:")
+        name = input("Enter substance name or chemical formula: ")
+        mass = float(input("Enter mass (g): "))
+        
+        # Try to automatically calculate molar mass
+        use_molar_heat = input("Use molar heat capacity? (y/n): ").lower() == 'y'
+        
+        if use_molar_heat:
+            # Try to calculate molar mass if a chemical formula is given
+            try:
+                molar_mass_result = calculate_molar_mass(name)
+                if molar_mass_result['success']:
+                    molar_mass = molar_mass_result['molar_mass']
+                    print(f"Calculated molar mass: {molar_mass:.4f} g/mol")
+                else:
+                    print("Could not automatically calculate molar mass.")
+                    molar_mass = float(input("Enter molar mass (g/mol): "))
+            except:
+                print("Could not automatically calculate molar mass.")
+                molar_mass = float(input("Enter molar mass (g/mol): "))
+                
+            molar_heat_capacity = float(input("Enter molar heat capacity (J/(mol·K)): "))
+            # Calculate specific heat
+            specific_heat = molar_heat_capacity / molar_mass
+            print(f"Calculated specific heat: {specific_heat:.4f} J/(g·K)")
+        else:
+            specific_heat = float(input("Enter specific heat capacity (J/(g·K)): "))
+        
+        initial_temp = float(input("Enter initial temperature (°C): "))
+        
+        substance = {
+            'name': name,
+            'mass': mass,
+            'specific_heat': specific_heat,
+            'initial_temp': initial_temp
+        }
+        
+        if use_molar_heat:
+            substance['molar_mass'] = molar_mass
+            substance['molar_heat_capacity'] = molar_heat_capacity
+        
+        substances.append(substance)
+    
+    # Solve problem
+    result = solve_mixture_problem(substances)
+    
+    print("\n=== Solution ===")
+    for step in result["steps"]:
+        print(step)
+    
+    print(f"\nFinal equilibrium temperature: {result['final_temp']:.2f} °C")
+    print("\nHeat transferred by each substance:")
+    for transfer in result["heat_transfers"]:
+        print(f"  {transfer['name']}: {transfer['heat']:.2f} J (ΔT = {transfer['delta_t']:.2f} °C)")
+        
 def handle_predefined_scenarios():
     """
     Handler function for solving predefined qualitative analysis scenarios.
@@ -694,8 +901,15 @@ def main():
         '17': handle_osmotic_pressure,           
         '18': handle_vapor_pressure_lowering,
         '19': handle_chemical_name_to_formula,
-        '20': handle_qualitative_analysis,       # Add this line
-        '21': handle_predefined_scenarios,       # Add this line  
+        '20': handle_qualitative_analysis,
+        '21': handle_predefined_scenarios,
+        # Add new thermodynamics handlers
+        '22': handle_heat_calculation,
+        '23': handle_temperature_change_calculation,
+        '24': handle_final_temperature_calculation,
+        '25': handle_thermal_equilibrium,
+        '26': handle_thermal_equilibrium_molar,
+        '27': handle_mixture_thermal_equilibrium,
         '0': exit
     }
     while True:
@@ -720,9 +934,16 @@ def main():
         print("17. Osmotic pressure (molecular weight)")
         print("18. Vapor pressure lowering (molecular weight)")
         print("19. Convert chemical name to formula")
-        print("---- Qualitative Analysis ----")  # Add this line
-        print("20. Solve general qualitative analysis problem")  # Add this line
-        print("21. Solve predefined qualitative analysis scenario")  # Add this line
+        print("---- Qualitative Analysis ----")
+        print("20. Solve general qualitative analysis problem")
+        print("21. Solve predefined qualitative analysis scenario")
+        print("---- Thermodynamics ----")  # Add this section header
+        print("22. Calculate heat energy (q = m × c × ΔT)")
+        print("23. Calculate temperature change (ΔT = q / (m × c))")
+        print("24. Calculate final temperature (Tf = Ti + ΔT)")
+        print("25. Solve thermal equilibrium problem (two substances)")
+        print("26. Solve thermal equilibrium with molar heat capacities")
+        print("27. Solve thermal equilibrium with multiple substances")
         print("0. Exit")
         
         choice = input("Enter choice: ")
